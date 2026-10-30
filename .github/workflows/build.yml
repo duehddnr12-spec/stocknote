@@ -2,6 +2,8 @@ name: Build StockNote apps
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
 permissions:
