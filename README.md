@@ -9,6 +9,10 @@ Windows / macOS용 독립형 범용 재고관리 프로그램입니다.
 
 ## 다운로드
 
+현재 자동 빌드는 GitHub **Actions**에서 먼저 확인할 수 있습니다. 이 단계에서 생성되는 파일은 테스트용 빌드 결과물이며, 정식 Releases 게시 전까지 개발 배포판으로 취급하세요.
+
+**주의:** 이 빌드의 로컬 실행 서버는 스마트스토어·KREAM 자동 API 연결을 지원하지 않습니다. 재고 관리 및 CSV 주문 업로드 기능을 우선 테스트하고 실제 주문 API 자동 수집은 향후 별도로 검증해야 합니다.
+
 Windows 및 macOS 앱은 [Releases](https://github.com/duehddnr12-spec/stocknote/releases)에서 제공합니다. **릴리스에 ZIP 파일이 게시되기 전에는 앱 배포가 완료된 것이 아닙니다.**
 
 ## 빌드
