@@ -30,7 +30,7 @@ class UpdateSafetyTests(unittest.TestCase):
             self.assertEqual(u.app_target(system='Windows',executable=str(exe)),exe.resolve())
             self.assertIsNone(u.app_target(system='Windows',executable=str(exe.with_name('Other.exe'))))
             mac=Path(folder)/'StockNote.app'/'Contents'/'MacOS'/'StockNote'
-            self.assertEqual(u.app_target(system='Darwin',executable=str(mac)),Path(folder)/'StockNote.app')
+            self.assertEqual(u.app_target(system='Darwin',executable=str(mac)),(Path(folder)/'StockNote.app').resolve())
         self.assertEqual(u.get_asset({'assets':[{'name':'StockNote_Mac.zip'}]},'Darwin')['name'],'StockNote_Mac.zip')
     def test_untrusted_download_rejected(self):
         for url in ['http://github.com/'+u.REPO+'/releases/download/v7.5/a.zip',
