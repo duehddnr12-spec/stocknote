@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import requests
 
-VERSION = '7.4.0-preview'
+VERSION = '7.5.0-preview'
 REPO = 'duehddnr12-spec/stocknote'
 API = 'https://api.github.com/repos/' + REPO + '/releases?per_page=30'
 TAG = re.compile(r'^v(\d+)\.(\d+)\.(\d+)(-preview)?$')
