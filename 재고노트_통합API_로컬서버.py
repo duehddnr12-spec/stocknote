@@ -15,7 +15,8 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, urlencode, quote_plus
-from threading import Lock
+from threading import Lock, Timer
+import stocknote_update
 from email.utils import parsedate_to_datetime
 
 try:
@@ -538,6 +539,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.wfile.write(body)
         if path.path.startswith('/api/') and not local_request_allowed(self):
             return self.respond(403, {'error': '로컬 재고노트 페이지에서만 접근할 수 있습니다.'})
+        if path.path == '/api/update/check':
+            try:
+                return self.respond(200, stocknote_update.check())
+            except (RuntimeError, ValueError, requests.RequestException) as exc:
+                return self.respond(503, {'error': '업데이트 확인 실패: ' + str(exc)[:220]})
         if path.path == '/api/poizon/status':
             with POIZON_LOCK:ready=bool(POIZON_CONFIG.get('app_key'))
             return self.respond(200,{'configured':ready})
@@ -594,10 +600,22 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(415,{'error':'JSON 형식만 허용합니다.'})
         try:
             n=int(self.headers.get('Content-Length','0'))
-            if n < 0 or n > 16000:raise ValueError('요청 데이터가 너무 큽니다.')
+            if n < 0 or n > (stocknote_update.MAX_BACKUP if urlparse(self.path).path == '/api/update/backup' else 16000):raise ValueError('요청 데이터가 너무 큽니다.')
             data=json.loads(self.rfile.read(n))
             if not isinstance(data,dict):raise ValueError('JSON 객체가 필요합니다.')
             path=urlparse(self.path).path
+            if path=='/api/update/backup':
+                return self.respond(200, stocknote_update.backup(data))
+            if path=='/api/update/install':
+                token=data.get('backupToken')
+                tag=data.get('tag')
+                if not isinstance(token,str) or not isinstance(tag,str):
+                    raise ValueError('업데이트 승인 정보가 올바르지 않습니다.')
+                result=stocknote_update.install(tag,token)
+                exit_timer=Timer(1.0, lambda: os._exit(0))
+                exit_timer.daemon=True
+                exit_timer.start()
+                return self.respond(200,result)
             if path=='/api/poizon/config':
                 if POIZON_JOB_LOCK.locked():return self.respond(409,{'error':'POIZON 주문 조회 중에는 키를 변경할 수 없습니다.'})
                 configure_poizon(data);return self.respond(200,{'configured':True})
@@ -625,7 +643,7 @@ class Handler(BaseHTTPRequestHandler):
                     KREAM_CONFIG.clear()
                 return self.respond(200,{'configured':False})
             return self.respond(404,{'error':'찾을 수 없는 경로입니다.'})
-        except (ValueError,TypeError,KeyError,json.JSONDecodeError) as exc:
+        except (ValueError,TypeError,KeyError,RuntimeError, OSError, requests.RequestException, json.JSONDecodeError) as exc:
             return self.respond(400,{'error':str(exc)[:230]})
 
     def log_message(self, format, *args):
