@@ -51,12 +51,12 @@ jobs:
         run: test -s release/StockNote_Windows.zip && test -s release/StockNote_Mac.zip
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v7.2.0-preview' }}
-          name: StockNote v7.2.0 preview
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v7.3.0-preview' }}
+          name: StockNote v7.3.0 preview
           body: |
             Windows 및 Mac 독립형 재고관리 앱의 미리보기 배포입니다.
-            옵션별 상품 관리, 입출고, CSV 주문 불러오기를 테스트할 수 있습니다.
-            스마트스토어/KREAM 자동 API 주문 조회는 이 빌드에서 지원하지 않습니다.
+            옵션별 상품 관리, 입출고, CSV 주문 불러오기 및 API 연결 화면을 테스트할 수 있습니다.
+            스마트스토어와 POIZON 공식 API 주문 조회를 구현했으나 실계정 권한 확인이 필요합니다. KREAM은 승인된 자체 API 주소와 인증 명세가 없으면 자동 조회가 불가능합니다.
             서명/공증이 없는 테스트용 앱이므로 운영체제 보안 경고가 표시될 수 있습니다.
             실제 재고 사용 전 반드시 백업하세요.
           files: release/*.zip
