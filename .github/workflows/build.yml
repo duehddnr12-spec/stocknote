@@ -1,0 +1,54 @@
+name: Build StockNote apps
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows
+          - os: macos-15
+            label: Mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install packages
+        run: python -m pip install -r requirements-build.txt
+      - name: Validate Python
+        run: python -m py_compile build_app.py 재고노트_통합API_로컬서버.py
+      - name: Package app
+        run: python build_app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StockNote-${{ matrix.label }}
+          path: release/*.zip
+          if-no-files-found: error
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: StockNote-*
+          path: release
+          merge-multiple: true
+      - name: Verify packages
+        run: test -s release/StockNote_Windows.zip && test -s release/StockNote_Mac.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
