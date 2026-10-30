@@ -49,6 +49,24 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Determine release version from bundled updater
+        id: release_version
+        run: |
+          python3 - <<'PY'
+          import ast, os
+          from pathlib import Path
+          module = ast.parse(Path('stocknote_update.py').read_text(encoding='utf-8'))
+          matches = [node.value.value for node in module.body
+                     if isinstance(node,ast.Assign) and isinstance(node.value,ast.Constant)
+                     and any(isinstance(t,ast.Name) and t.id=='VERSION' for t in node.targets)]
+          if len(matches) != 1:
+              raise SystemExit('Updater VERSION must be a literal string')
+          version = matches[0]
+          with open(os.environ['GITHUB_OUTPUT'],'a') as fd:
+              fd.write('tag=v' + version + '\n')
+          print('Release version:', version)
+          PY
       - uses: actions/download-artifact@v4
         with:
           pattern: StockNote-*
@@ -59,10 +77,14 @@ jobs:
       - name: Record SHA-256 checksums
         working-directory: release
         run: sha256sum StockNote_Windows.zip StockNote_Mac.zip > SHA256SUMS.txt
+      - name: Validate Git ref matches bundled version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: test "${GITHUB_REF_NAME}" = "${{ steps.release_version.outputs.tag }}"
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v7.5.1-preview' }}
-          name: StockNote v7.5.1 preview
+          tag_name: ${{ steps.release_version.outputs.tag }}
+          name: StockNote ${{ steps.release_version.outputs.tag }}
           body: |
             Windows 및 Mac 독립형 재고관리 앱의 미리보기 배포입니다.
             옵션별 상품 관리, 입출고, CSV 주문 불러오기, API 연결, GitHub 업데이트 확인 및 사용자 승인 설치 기능을 제공합니다.
