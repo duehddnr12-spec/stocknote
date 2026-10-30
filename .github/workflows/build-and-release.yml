@@ -1,0 +1,64 @@
+name: Build & Release StockNote
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v7.2.0); leave empty for test build"
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, platform: Windows }
+          - { os: macos-15, platform: Mac }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Check source syntax
+        run: python -m py_compile build_app.py stocknote_server.py
+      - name: Build app
+        run: python build_app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StockNote-${{ matrix.platform }}
+          path: release/*.zip
+          if-no-files-found: error
+  publish:
+    name: Publish release
+    needs: build
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: StockNote-*
+          path: release
+          merge-multiple: true
+      - name: Verify packages
+        run: |
+          test -s release/StockNote_Windows.zip
+          test -s release/StockNote_Mac.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: StockNote ${{ inputs.version || github.ref_name }}
+          body: "재고노트 v7.2 Windows/Mac 배포 빌드입니다. 개인 재고 및 API 키 미포함. Mac 앱은 서명·공증되지 않았습니다."
+          files: release/*.zip
+          fail_on_unmatched_files: true
