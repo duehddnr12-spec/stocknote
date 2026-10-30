@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import requests
 
-VERSION = '7.5.0-preview'
+VERSION = '7.5.2-preview'
 REPO = 'duehddnr12-spec/stocknote'
 API = 'https://api.github.com/repos/' + REPO + '/releases?per_page=30'
 TAG = re.compile(r'^v(\d+)\.(\d+)\.(\d+)(-preview)?$')
@@ -55,11 +55,25 @@ def get_asset(release,system=None):
     if not name: return None
     return next((a for a in release.get('assets',[]) if a.get('name')==name),None)
 
+def install_preflight():
+    """Reasons shown directly inside the app when in-place updating is unavailable."""
+    system=platform.system()
+    if system not in ('Windows','Darwin'):
+        return '자동 설치는 Windows 또는 Mac에서만 가능합니다.'
+    target=app_target(system=system)
+    if target is None:
+        return '앱 실행 파일에서 재고노트를 실행해 주세요. (HTML 파일이나 Python 서버만 실행한 경우 자동 설치 불가)'
+    if not os.access(target.parent,os.W_OK):
+        return '실행 중인 앱 폴더에 쓰기 권한이 없습니다. 다운로드 폴더 등 본인이 수정할 수 있는 위치로 앱을 이동해 실행하세요.'
+    return None
+
 def check():
     rel=newest()
     asset=get_asset(rel) if rel else None
+    reason=install_preflight()
     return {'current':VERSION,'available':bool(rel and asset),'tag':rel['tag_name'] if rel and asset else None,
-            'installable':bool(rel and asset and app_target()),
+            'installable':bool(rel and asset and not reason),
+            'reason':reason or ('' if rel and asset else '설치 가능한 최신 업데이트가 없습니다.'),
             'releaseUrl':rel.get('html_url') if rel and asset else None}
 
 def official(url):
@@ -169,8 +183,9 @@ def install(tag,backup_token):
         timestamp=PENDING.pop(backup_token,None)
         if timestamp is None or time.monotonic()-timestamp>600:raise RuntimeError('설치 전에 재고 백업이 필요합니다.')
         system=platform.system();target=app_target(system=system)
-        if not target or system not in ('Windows','Darwin'):raise RuntimeError('Windows/Mac 설치된 앱에서만 자동 설치가 가능합니다.')
-        if not os.access(target.parent,os.W_OK):raise RuntimeError('앱 폴더 쓰기 권한이 없습니다. 쓰기 가능한 폴더에서 실행하세요.')
+        reason=install_preflight()
+        if reason:raise RuntimeError(reason)
+        if not target:raise RuntimeError('설치 앱을 찾지 못했습니다.')
         rel=newest()
         if not rel or rel.get('tag_name')!=tag:raise RuntimeError('업데이트 버전을 다시 확인하세요.')
         asset=get_asset(rel,system)
