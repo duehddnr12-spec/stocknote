@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>재고노트 v7.5 | 상품 선택·전체 삭제 · 범용 재고관리</title>
+  <title>재고노트 v7.5.1 | 삭제 후 재등록 수정 · 범용 재고관리</title>
   <style>
     :root{--bg:#f6f8fb;--paper:#fff;--ink:#172635;--sub:#657482;--line:#e5eaf0;--primary:#0f766e;--primary-deep:#115b56;--accent:#e7f5f1;--red:#ce443d;--red-bg:#fff0ed;--amber:#9d621c;--amber-bg:#fff7e7;--r:16px;--shadow:0 9px 34px rgba(29,47,66,.045)}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);font-family: -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif;color:var(--ink);font-size:14px;line-height:1.52}
@@ -764,6 +764,15 @@
       }
       function filename(ext){const d=new Date();const local=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');return '재고노트_'+local+'.'+ext;}
       function backup(){download(filename('json'),JSON.stringify({app:'재고노트',version:4,exportedAt:new Date().toISOString(),products:state.products,movements:state.movements,orders:state.orders,aliases:state.aliases},null,2),'application/json;charset=utf-8');notify('전체 데이터 백업 파일을 저장했습니다.');}
+      // 재등록 시 삭제된 옵션의 ID와 과거 주문·입출고 기록은 유지합니다.
+      // 명시한 재고수량은 이전 보관 수량에 더하지 않고 최종 수량으로 적용합니다.
+      function restoreVariantForRegistration(p,changes,targetStock){
+        const wasArchived=!!p.archived,wasProductArchived=!!p.archivedByProduct,before=p.stock;
+        Object.assign(p,changes);
+        p.archived=false;p.archivedAt='';p.archivedByProduct=false;
+        if(targetStock!==undefined&&targetStock!==null)p.stock=targetStock;
+        return {wasArchived,wasProductArchived,delta:p.stock-before};
+      }
       function setTab(tab){currentTab=tab;for(const t of ['products','history','orders']){$(t+'Tab').classList.toggle('active',t===tab);$(t+'Tab').setAttribute('aria-selected',String(t===tab));$(t+'View').classList.toggle('hide',t!==tab);}}
       $('productForm').addEventListener('submit',e=>{
         e.preventDefault();const name=$('pName').value.trim(),sku=$('pSku').value.trim(),option=buildOption();
@@ -771,7 +780,7 @@
         if(option.length>90){notify('옵션 값은 합쳐서 90자 이하로 입력하세요.',true);return;}
         if(!name||!sku){notify('상품명과 관리코드는 필수입니다.',true);return;}
         const existingVariant=state.products.find(p=>variantKey(p.sku,p.option)===variantKey(sku,option)&&p.id!==editingId);
-        if(existingVariant?.archivedByProduct){notify('삭제 목록에 같은 품번과 옵션이 있습니다. 먼저 「삭제한 상품 보기」에서 복구하세요.',true);return;}
+        if(existingVariant?.archivedByProduct&&!confirm('이 옵션은 삭제한 상품에 보관되어 있습니다.\n기존 상품 ID와 이력은 유지하며, 입력한 재고수량을 새 최종 수량으로 적용해 다시 등록할까요?\n다른 삭제 옵션은 복구되지 않습니다.'))return;
         if(existingVariant&&!sizeAddSku&&!existingVariant.archived){notify('같은 품번과 옵션 조합이 이미 등록되어 있습니다.',true);$('pOption').focus();return;}
         const numbers={initial:$('pInitial').value};
         if(Object.values(numbers).some(v=>!validQty(v))){notify('수량은 0 이상의 정수로 입력하세요.',true);return;}
@@ -784,21 +793,18 @@
           const inc=Number(numbers.initial);
           if(inc===0){notify('기존 옵션을 재입고하려면 수량을 1개 이상 입력해 주세요.',true);return;}
           if(existingVariant.stock+inc>999999999){notify('수량 한도를 초과했어.',true);return;}
-          const wasArchived=!!existingVariant.archived;
-          existingVariant.stock+=inc;existingVariant.optionNames=base.optionNames;
-          existingVariant.archived=false;existingVariant.archivedAt='';
-          if(wasArchived)log(existingVariant,'option_restore',0,'삭제된 옵션 다시 등록');
+          const restored=restoreVariantForRegistration(existingVariant,{optionNames:base.optionNames},existingVariant.stock+inc);
+          if(restored.wasArchived)log(existingVariant,restored.wasProductArchived?'product_restore':'option_restore',0,'삭제된 옵션 다시 등록');
           log(existingVariant,'in',inc,'옵션 추가 화면에서 기존 옵션 재입고');
           expandedSku=sizeAddSku.trim().toUpperCase();
           persist();render();closeAll();notify(option+' 사이즈에 '+inc+'개 입고 완료');return;
         }
         if(p){Object.assign(p,base);state.products.filter(x=>x.id!==p.id&&!x.archived&&x.sku.toUpperCase()===p.sku.toUpperCase()).forEach(x=>x.category=category);notify('상품 정보를 수정했습니다.');}
         else if(existingVariant&&existingVariant.archived){
-          Object.assign(existingVariant,base);existingVariant.archived=false;existingVariant.archivedAt='';
-          const inc=Number(numbers.initial);existingVariant.stock=inc;
-          log(existingVariant,'option_restore',0,'삭제된 옵션 다시 등록');
-          if(inc>0)log(existingVariant,'in',inc,'삭제된 옵션 새로 입고');
-          notify('삭제된 옵션을 다시 등록했습니다.');
+          const restored=restoreVariantForRegistration(existingVariant,base,Number(numbers.initial));
+          log(existingVariant,restored.wasProductArchived?'product_restore':'option_restore',0,'삭제된 옵션 다시 등록');
+          if(restored.delta!==0)log(existingVariant,'adjust',restored.delta,'재등록 재고 확정 · 보관된 수량에서 입력 수량으로 조정');
+          notify('삭제된 옵션을 다시 등록했습니다. 입력한 수량이 최종 재고로 적용됩니다.');
         }else{const newP={id:id(),...base,channel:'기타',cost:0,price:0,stock:Number(numbers.initial),createdAt:new Date().toISOString()};state.products.push(newP);if(newP.stock>0)log(newP,'initial',newP.stock,'상품 등록 시 초기 재고');notify('새 상품을 등록했습니다.');}
         if(sizeAddSku){expandedSku=sizeAddSku.toUpperCase();productPage=Math.max(1,productPage);if(!editingId&&Number(numbers.initial)===0)$('showZeroSizes').checked=true;}
         persist();render();closeAll();
@@ -1049,8 +1055,8 @@
             }
             item.data=data;
             const exists=current.get(key);
-            if(exists?.archivedByProduct)throw Error('삭제된 상품입니다. 삭제한 상품 보기에서 복구한 후 다시 등록하세요.');
-            if(exists){item.status=exists.archived?'update':($('bulkDuplicates').value==='skip'?'skip':'update');item.msg=item.status==='skip'?'기존 품번+옵션 유지':($('bulkReplaceStock').checked&&data.stock!==undefined?'기존 정보 + 재고 업데이트':'기존 정보 업데이트 · 재고 유지');}
+            // 삭제된 상품의 동일 품번+옵션도 엑셀에서 재등록할 수 있습니다.
+            if(exists){item.status=exists.archived?'update':($('bulkDuplicates').value==='skip'?'skip':'update');item.msg=item.status==='skip'?'기존 품번+옵션 유지':(exists.archivedByProduct?'삭제한 상품 재등록 · 입력 수량을 최종 재고로 적용':($('bulkReplaceStock').checked&&data.stock!==undefined?'기존 정보 + 재고 업데이트':'기존 정보 업데이트 · 재고 유지'));}
             else{item.status='add';item.msg='재고 '+number(data.stock??0)+(data.unit||'개')+'로 신규 등록';}
           }catch(err){item.msg=err.message;}
           count[item.status]++;records.push(item);
@@ -1107,11 +1113,13 @@
             if(p.stock>0)bulkLog(p,'initial',p.stock,'엑셀 일괄 등록 · 초기 재고');
           }else{
             const p=bySku.get(variantKey(d.sku,d.option));if(!p)continue;
-            for(const key of ['name','option','optionNames','unit','category'])if(d[key]!==undefined)p[key]=d[key];p.minStock=LOW_STOCK_THRESHOLD;
             const wasArchived=!!p.archived;
-            if(wasArchived){p.archived=false;p.archivedAt='';bulkLog(p,'option_restore',0,'엑셀 일괄 등록 · 삭제 옵션 복구');}
-            if(wasArchived&&d.stock!==undefined){const inc=d.stock-p.stock;p.stock=d.stock;if(inc)bulkLog(p,'in',inc,'엑셀 일괄 등록 · 복구 옵션 초기 재고');}
-            if(!wasArchived&&$('bulkReplaceStock').checked&&d.stock!==undefined&&d.stock!==p.stock){const delta=d.stock-p.stock;p.stock=d.stock;bulkLog(p,'adjust',delta,'엑셀 일괄 등록 · 재고 조정');}
+            const changes={};
+            for(const key of ['name','option','optionNames','unit','category'])if(d[key]!==undefined)changes[key]=d[key];
+            const targetStock=d.stock!==undefined&&(wasArchived||$('bulkReplaceStock').checked)?d.stock:undefined;
+            const restored=restoreVariantForRegistration(p,changes,targetStock);p.minStock=LOW_STOCK_THRESHOLD;
+            if(restored.wasArchived)bulkLog(p,restored.wasProductArchived?'product_restore':'option_restore',0,'엑셀 일괄 등록 · 삭제 옵션 다시 등록');
+            if(restored.delta!==0)bulkLog(p,'adjust',restored.delta,'엑셀 일괄 등록 · 입력 재고로 수량 조정');
           }
         }
         try{await saveSnapshot(next);}catch(e){notify('저장 실패로 일괄 등록을 취소했습니다: '+e.message,true);return;}
