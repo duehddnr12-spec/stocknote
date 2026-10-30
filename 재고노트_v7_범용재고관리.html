@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>재고노트 v7.4 | 자동 업데이트 · 범용 재고관리</title>
+  <title>재고노트 v7.5 | 상품 선택·전체 삭제 · 범용 재고관리</title>
   <style>
     :root{--bg:#f6f8fb;--paper:#fff;--ink:#172635;--sub:#657482;--line:#e5eaf0;--primary:#0f766e;--primary-deep:#115b56;--accent:#e7f5f1;--red:#ce443d;--red-bg:#fff0ed;--amber:#9d621c;--amber-bg:#fff7e7;--r:16px;--shadow:0 9px 34px rgba(29,47,66,.045)}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);font-family: -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif;color:var(--ink);font-size:14px;line-height:1.52}
@@ -61,6 +61,14 @@
     @media(max-width:620px){.group-row>td{padding:11px 8px}.inventory-table{min-width:550px}.size-matrix{grid-template-columns:repeat(2,minmax(0,1fr))}.resultbar{align-items:flex-start;flex-direction:column}.pager{gap:7px}}
 
     .size-caption{font-size:10px;color:#7a8a95;overflow-wrap:anywhere}.category-tag{margin-left:5px;background:#eef2fb;color:#4e5b8b;font-size:10px}.size-card{min-width:85px}
+    .delete-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:12px 18px;background:#fbfcfd;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+    .delete-toolbar label{display:flex;align-items:center;gap:6px;font-weight:650;font-size:12px;white-space:nowrap}
+    .delete-toolbar input,.sku-choose{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+    .delete-toolbar .delete-hint{color:var(--sub);font-size:11px;margin-right:auto}
+    .archived-panel{padding:16px 20px;background:#fffaf6;border-top:1px solid var(--line)}
+    .archived-panel table{border-collapse:collapse;width:100%;font-size:12px}
+    .archived-panel th,.archived-panel td{text-align:left;padding:9px;border-bottom:1px solid #efede9}
+    .archived-panel strong{display:block;margin-bottom:8px}
   </style>
 </head>
 <body>
@@ -98,9 +106,17 @@
         </div>
         <div id="productsView" role="tabpanel" aria-labelledby="productsTab">
           <div class="filters"><label class="searchbox"><span class="hide">상품 검색</span><input type="search" id="searchInput" placeholder="상품명, 옵션, 품번 검색" aria-label="상품 검색" /></label><label><span class="hide">상품 종류</span><select id="categoryFilter" class="input-select" aria-label="상품 종류"><option value="">전체 종류</option><option value="신발">신발</option><option value="의류">의류</option><option value="가방">가방</option><option value="모자">모자</option><option value="잡화">잡화</option><option value="전자제품">전자제품</option><option value="화장품">화장품</option><option value="식품">식품</option><option value="생활용품">생활용품</option><option value="도서">도서</option><option value="기타">기타</option></select></label><label class="check-filter"><input type="checkbox" id="lowFilter" /> 부족 재고만</label><label class="check-filter"><input type="checkbox" id="showZeroSizes" /> 품절 옵션 보기</label></div>
-          <div id="productTableWrap" class="table-wrap">
-            <table class="inventory-table"><thead><tr><th>품번(SKU) <span title="영문 A→Z, 혼합 품번은 영문 먼저 · 숫자는 큰 수부터, 숫자 전용 품번은 마지막">↕</span></th><th>상품명</th><th>보유 옵션</th><th>총 재고</th><th>관리</th></tr></thead><tbody id="productRows"></tbody></table>
+          <div class="delete-toolbar" aria-label="상품 일괄 관리">
+            <label><input type="checkbox" id="selectPage" aria-label="현재 페이지 상품 모두 선택" /> 현재 페이지 선택</label>
+            <span class="delete-hint" id="selectedCount" role="status">선택 0종</span>
+            <button class="btn sm danger" type="button" id="deleteSelectedBtn" disabled>선택 상품 삭제</button>
+            <button class="btn sm danger" type="button" id="deleteAllBtn">전체 상품 삭제</button>
+            <button class="btn sm" type="button" id="showArchivedBtn" aria-expanded="false">삭제한 상품 보기</button>
           </div>
+          <div id="productTableWrap" class="table-wrap">
+            <table class="inventory-table"><thead><tr><th>품번(SKU) <span title="영문 A→Z, 혼합 품번은 영문 먼저 · 숫자는 큰 수부터, 숫자 전용 품번은 마지막">↕</span></th><th>상품명</th><th>보유 옵션</th><th>총 재고</th><th>관리</th><th>선택</th></tr></thead><tbody id="productRows"></tbody></table>
+          </div>
+          <div id="archivedPanel" class="archived-panel hide"><strong>삭제된 상품 · 수량과 옵션을 보존합니다</strong><div class="table-wrap"><table><thead><tr><th>품번</th><th>상품명</th><th>보관 옵션</th><th>복구</th></tr></thead><tbody id="archivedRows"></tbody></table></div></div>
           <div id="productEmpty" class="empty hide"><div class="empty-symbol" aria-hidden="true">▤</div><h3 id="emptyTitle">아직 등록된 상품이 없습니다</h3><p id="emptyText">상품 종류와 옵션을 자유롭게 입력해 재고를 관리할 수 있습니다.</p><button id="emptyAddBtn" class="btn primary" type="button">첫 상품 등록하기</button></div>
           <div id="resultBar" class="resultbar"><span id="resultCount">총 0개 상품</span><div class="pager"><button type="button" class="btn sm" id="productPrev">이전</button><span id="productPageInfo">1 / 1</span><button type="button" class="btn sm" id="productNext">다음</button><button type="button" id="clearFilters">필터 초기화</button></div></div>
         </div>
@@ -212,11 +228,11 @@
     </div>
       <section class="panel" style="padding:18px 22px;margin-top:16px" aria-labelledby="updateHeading">
         <div class="header-row" style="padding:0 0 12px"><div><strong id="updateHeading">프로그램 업데이트</strong><p class="panel-hint">GitHub Releases에서 새 버전을 확인합니다. 설치 전 재고·주문·입출고 기록을 컴퓨터에 자동 백업합니다.</p></div></div>
-        <div id="updateStatus" role="status" aria-live="polite" style="font-size:13px;margin:8px 0">현재 버전 v7.4.0-preview · 업데이트를 확인하지 않았습니다.</div>
+        <div id="updateStatus" role="status" aria-live="polite" style="font-size:13px;margin:8px 0">현재 버전 v7.5.0-preview · 업데이트를 확인하지 않았습니다.</div>
         <div class="bulk-actions"><button type="button" class="btn" id="updateCheckInline">새 버전 확인</button><button type="button" class="btn primary" id="updateInstallBtn" disabled>백업 후 업데이트 설치</button></div>
         <p class="connector-help">설치 전 전체 백업을 별도 파일로 저장할 것을 권장합니다. 상품·기록은 기존 브라우저의 저장소에 유지됩니다. API 비밀키는 보안을 위해 저장하지 않아 앱 재시작 후 다시 입력해야 합니다. 앱을 다운로드 폴더 등 쓰기 가능한 폴더에 두세요.</p>
       </section>
-    <p class="footer-note">재고노트 v7.4 · API 키는 로컬 서버 메모리에만 보관 · 권한 확인 필요</p>
+    <p class="footer-note">재고노트 v7.5 · API 키는 로컬 서버 메모리에만 보관 · 권한 확인 필요</p>
   </main>
 
   <div class="backdrop" id="productModal" role="presentation">
@@ -332,9 +348,10 @@
       const stamp=iso=>{const d=new Date(iso);return isNaN(d)?'-':new Intl.DateTimeFormat('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d)};
       const id=()=> (typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
       const validQty=(v,min=0)=>Number.isSafeInteger(Number(v))&&Number(v)>=min&&Number(v)<=999999999;
-      const kindLabel={in:'입고',out:'출고 / 판매',adjust:'재고 조정',initial:'초기 등록',order:'발송중 재고 차감',order_cancel:'주문 취소 복구',reversal:'입출고 취소 반영',option_delete:'옵션 삭제',option_restore:'옵션 복구'};
+      const kindLabel={in:'입고',out:'출고 / 판매',adjust:'재고 조정',initial:'초기 등록',order:'발송중 재고 차감',order_cancel:'주문 취소 복구',reversal:'입출고 취소 반영',option_delete:'옵션 삭제',option_restore:'옵션 복구',product_delete:'상품 삭제',product_restore:'상품 복구'};
       let state={products:[],movements:[],orders:[],aliases:{}}, editingId=null, movingId=null, moveMode='in', currentTab='products', storageOK=true, toastTimer=null;
       let expandedSku=null, productPage=1, sizeAddSku=null, undoBusy=false;
+      const selectedSku=new Set();let shownPageSku=[],deletionBusy=false,showArchived=false;
       let inventoryDB=null, dbReady=false, databaseInit=false, writeQueue=Promise.resolve();
       const PRODUCT_PAGE_SIZE=50;
       const sizeCollator=new Intl.Collator('ko',{numeric:true,sensitivity:'base'});
@@ -350,11 +367,11 @@
           let productId=String(x.id??id()).slice(0,80);if(!productId||seenId.has(productId))productId=id();
           const qty=v=>validQty(v)?Number(v):0;
           seenSku.add(variantKey(sku,x.option));seenId.add(productId);
-          products.push({id:productId,sku,name,option:String(x.option??'').slice(0,90),optionNames:Array.isArray(x.optionNames)?x.optionNames.slice(0,2).map(v=>String(v).slice(0,25)):[],category:categoryOf(x.category,x.option,x.name),channel:channels.includes(x.channel)?x.channel:'기타',unit:units.includes(x.unit)?x.unit:'개',stock:qty(x.stock),minStock:LOW_STOCK_THRESHOLD,cost:qty(x.cost),price:qty(x.price),createdAt:String(x.createdAt||new Date().toISOString()),archived:!!x.archived,archivedAt:String(x.archivedAt||'').slice(0,60)});
+          products.push({id:productId,sku,name,option:String(x.option??'').slice(0,90),optionNames:Array.isArray(x.optionNames)?x.optionNames.slice(0,2).map(v=>String(v).slice(0,25)):[],category:categoryOf(x.category,x.option,x.name),channel:channels.includes(x.channel)?x.channel:'기타',unit:units.includes(x.unit)?x.unit:'개',stock:qty(x.stock),minStock:LOW_STOCK_THRESHOLD,cost:qty(x.cost),price:qty(x.price),createdAt:String(x.createdAt||new Date().toISOString()),archived:!!x.archived,archivedAt:String(x.archivedAt||'').slice(0,60),archivedByProduct:!!x.archivedByProduct});
         }
         const movements=[];
         for(const x of (Array.isArray(d.movements)?d.movements:[]).slice(0,100000)){
-          if(!x||typeof x!=='object'||!['in','out','adjust','initial','order','order_cancel','reversal','option_delete','option_restore'].includes(x.kind))continue;
+          if(!x||typeof x!=='object'||!['in','out','adjust','initial','order','order_cancel','reversal','option_delete','option_restore','product_delete','product_restore'].includes(x.kind))continue;
           movements.push({id:String(x.id??id()).slice(0,80),productId:String(x.productId??''),sku:String(x.sku??'').slice(0,40),name:String(x.name??'').slice(0,90),option:String(x.option??'').slice(0,90),kind:x.kind,delta:Number.isSafeInteger(Number(x.delta))?Number(x.delta):0,after:validQty(x.after)?Number(x.after):0,unit:units.includes(x.unit)?x.unit:'개',memo:String(x.memo??'').slice(0,200),at:String(x.at||new Date().toISOString()),undoOf:String(x.undoOf??'').slice(0,80),reversedAt:String(x.reversedAt??'').slice(0,60),reversedBy:String(x.reversedBy??'').slice(0,80)});
         }
         const orders=[];const seenOrder=new Set();
@@ -492,6 +509,87 @@
         if(val==='__custom__')return $('pCustomCategory').value.trim().slice(0,32);
         return categoryOf(val,option,name);
       }
+      function renderDeleteUI(onPage){
+        shownPageSku=onPage.map(g=>g.key);
+        // 선택 영역은 한 페이지 50개 품번까지만 렌더링하고, 페이지를 넘겨도 선택은 유지합니다.
+        [...document.querySelectorAll('#productRows tr.group-row')].forEach((tr,i)=>{
+          const key=onPage[i]?.key;
+          if(!key)return;
+          const td=document.createElement('td');
+          td.innerHTML=`<input type="checkbox" class="sku-choose" data-select-sku="${html(key)}" aria-label="${html(onPage[i].name)} 상품 선택" ${selectedSku.has(key)?'checked':''}>`;
+          tr.appendChild(td);
+        });
+        const pageCount=shownPageSku.filter(key=>selectedSku.has(key)).length;
+        $('selectPage').checked=shownPageSku.length>0&&pageCount===shownPageSku.length;
+        $('selectPage').indeterminate=pageCount>0&&pageCount<shownPageSku.length;
+        $('selectPage').disabled=!shownPageSku.length;
+        $('selectedCount').textContent='선택 '+number(selectedSku.size)+'종'+(selectedSku.size?' · 여러 페이지 선택 가능':'');
+        $('deleteSelectedBtn').disabled=!selectedSku.size||deletionBusy;
+        $('deleteAllBtn').disabled=!activeProducts().length||deletionBusy;
+        renderArchivedList();
+      }
+      function renderArchivedList(){
+        $('archivedPanel').classList.toggle('hide',!showArchived);
+        $('showArchivedBtn').setAttribute('aria-expanded',String(showArchived));
+        $('showArchivedBtn').textContent=showArchived?'삭제 목록 닫기':'삭제한 상품 보기';
+        if(!showArchived)return;
+        const group=new Map();
+        for(const p of state.products.filter(x=>x.archived&&x.archivedByProduct)){
+          const key=p.sku.trim().toUpperCase();
+          if(!group.has(key))group.set(key,{sku:p.sku,name:p.name,count:0});
+          group.get(key).count++;
+        }
+        const entries=[...group.values()].sort((a,b)=>compareSku(a.sku,b.sku));
+        $('archivedRows').innerHTML=entries.length?entries.map(g=>`<tr><td>${html(g.sku)}</td><td>${html(g.name)}</td><td>${number(g.count)}개</td><td><button type="button" class="btn sm" data-restore-sku="${html(g.sku)}">복구</button></td></tr>`).join(''):'<tr><td colspan="4">삭제된 상품이 없습니다.</td></tr>';
+      }
+      const pendingLinkedSku=sku=>{
+        const ids=new Set(state.products.filter(p=>p.sku.trim().toUpperCase()===sku).map(p=>p.id));
+        return state.orders.some(o=>{
+          if(['cancel','returned'].includes(normalizeStatus(o.status))||o.fulfillment==='shipping'||o.appliedQty>0)return false;
+          return ids.has(o.mappedProductId)||ids.has(o.appliedProductId)||String(o.mappedSku||o.sku||'').trim().toUpperCase()===sku;
+        });
+      };
+      async function deleteSkuGroups(keys,all=false){
+        if(deletionBusy)return;
+        const target=new Set(keys);
+        const groups=[...new Set(activeProducts().map(p=>p.sku.trim().toUpperCase()))].filter(k=>target.has(k));
+        if(!groups.length){notify('선택된 상품이 없습니다.',true);return;}
+        const blocked=groups.filter(pendingLinkedSku);
+        if(blocked.length){notify('발송 전 주문이 연결된 상품 '+number(blocked.length)+'종은 삭제할 수 없습니다. 주문을 먼저 확인하세요.',true);return;}
+        if(!confirm((all?'전체 상품':'선택한 상품')+' '+number(groups.length)+'종을 삭제 목록으로 옮길까요?\n\n옵션·재고수량과 주문·입출고 기록은 그대로 보존되며 복구할 수 있습니다.\n삭제 전 JSON 백업을 다운로드합니다.'))return;
+        if(all&&prompt('전체 '+number(groups.length)+'종을 삭제하려면 확인 문구 [전체삭제]를 정확히 입력하세요.')!=='전체삭제')return;
+        deletionBusy=true;
+        try{
+          backup();
+          const next={products:state.products.map(p=>({...p})),movements:state.movements.slice(),orders:state.orders.slice(),aliases:{...state.aliases}};
+          const at=new Date().toISOString();const picked=new Set(groups);
+          const head=new Map();
+          for(const p of next.products){
+            if(p.archived||!picked.has(p.sku.trim().toUpperCase()))continue;
+            p.archived=true;p.archivedAt=at;p.archivedByProduct=true;
+            if(!head.has(p.sku.trim().toUpperCase()))head.set(p.sku.trim().toUpperCase(),p);
+          }
+          for(const p of head.values())next.movements.unshift({id:id(),productId:p.id,sku:p.sku,name:p.name,option:'',kind:'product_delete',delta:0,after:p.stock,unit:p.unit,memo:'상품 전체 옵션 보관 (수량 변경 없음)',at});
+          await saveSnapshot(next);state=next;
+          selectedSku.clear();expandedSku=null;render();notify('상품 '+number(groups.length)+'종을 삭제 목록으로 이동했습니다. 복구할 수 있습니다.');
+        }catch(e){notify('상품 삭제 실패: '+e.message,true)}
+        finally{deletionBusy=false;renderProducts()}
+      }
+      async function restoreSkuGroup(key){
+        if(deletionBusy)return;
+        const entries=state.products.filter(p=>p.archived&&p.archivedByProduct&&p.sku.trim().toUpperCase()===key);
+        if(!entries.length)return;
+        if(!confirm(entries[0].name+' 상품을 삭제 전 옵션·재고수량 그대로 복구할까요?'))return;
+        deletionBusy=true;
+        try{
+          const next={products:state.products.map(p=>({...p})),movements:state.movements.slice(),orders:state.orders.slice(),aliases:{...state.aliases}};
+          const at=new Date().toISOString();
+          for(const p of next.products){if(!entries.some(x=>x.id===p.id))continue;p.archived=false;p.archivedAt='';p.archivedByProduct=false;}
+          const p=entries[0];next.movements.unshift({id:id(),productId:p.id,sku:p.sku,name:p.name,option:'',kind:'product_restore',delta:0,after:p.stock,unit:p.unit,memo:'상품 선택 복구 (수량 변경 없음)',at});
+          await saveSnapshot(next);state=next;render();notify('상품과 옵션 '+number(entries.length)+'개를 복구했습니다.');
+        }catch(e){notify('상품 복구 실패: '+e.message,true)}
+        finally{deletionBusy=false;renderProducts()}
+      }
       function renderProducts(){
         const q=$('searchInput').value.trim().toLowerCase();
         const onlyLow=$('lowFilter').checked;
@@ -526,7 +624,7 @@
               <td><span class="badge ${lowCount?'low':''}">${number(g.inStock)}개 보유 옵션</span><div class="group-count">등록된 옵션 ${number(g.variants.length)}개${lowCount?' · 부족 '+number(lowCount)+'개':''}</div></td>
               <td><span class="group-total">${number(g.total)} <small>${html(g.variants[0]?.unit||'개')}</small></span></td>
               <td><button type="button" class="btn sm primary" data-add-size="${html(g.key)}">+ 옵션 추가</button></td>
-            </tr>${opened?`<tr class="group-expanded"><td colspan="5"><div class="size-panel"><div class="size-panel-top"><div class="size-panel-hint">${showZero?'등록된 전체 사이즈':'현재 재고가 있는 사이즈만'} 표시 · 각각 입고/출고 가능</div><button type="button" class="btn sm" data-add-size="${html(g.key)}">+ 새 옵션 입고</button></div>
+            </tr>${opened?`<tr class="group-expanded"><td colspan="6"><div class="size-panel"><div class="size-panel-top"><div class="size-panel-hint">${showZero?'등록된 전체 사이즈':'현재 재고가 있는 사이즈만'} 표시 · 각각 입고/출고 가능</div><button type="button" class="btn sm" data-add-size="${html(g.key)}">+ 새 옵션 입고</button></div>
                ${shown.length?`<div class="size-matrix">${shown.map(p=>`<div class="size-card ${low(p)?'low':''}"><div class="size-number">${html(p.option||'기본')}</div>${p.optionNames?.length?`<div class="size-caption">${html(p.optionNames.join(' / '))}</div>`:''}<div class="size-quantity">${number(p.stock)}${html(p.unit)} ${p.stock===0?'· 품절':low(p)?'· 부족':''}</div><div class="size-actions"><button type="button" class="btn sm" data-action="in" data-id="${html(p.id)}">입고</button><button type="button" class="btn sm" data-action="out" data-id="${html(p.id)}" ${p.stock===0?'disabled':''}>출고</button><button type="button" class="btn sm" data-action="edit" data-id="${html(p.id)}" aria-label="${html(p.option||'기본')} 옵션 수정">수정</button><button type="button" class="btn sm danger" data-option-delete="${html(p.id)}" aria-label="${html(p.option||'기본')} 옵션 삭제">삭제</button></div></div>`).join('')}</div>`:`<div class="size-none">현재 보유 중인 사이즈가 없어. 상품 옵션를 추가해 입고하거나 '품절 옵션 보기'를 선택해 기존 옵션을 다시 입고할 수 있어.</div>`}
                </div></td></tr>`:''}`;
         }).join('');
@@ -539,6 +637,7 @@
         $('productPrev').disabled=productPage===1;
         $('productNext').disabled=productPage>=pages;
         $('clearFilters').classList.toggle('hide',!q&&!onlyLow&&!showZero&&!categoryFilter);
+        renderDeleteUI(onPage);
       }
       function canUndoMovement(m){return ['in','out','adjust','initial'].includes(m.kind)&&m.delta!==0;}
       function renderHistory(){
@@ -746,6 +845,19 @@
       document.querySelectorAll('.backdrop').forEach(b=>b.addEventListener('mousedown',e=>{if(e.target===b)closeAll();}));
       document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setTab('products');$('searchInput').focus();}});
       $('pCategory').addEventListener('change',updateCategoryInput);
+      $('productRows').addEventListener('change',e=>{
+        const c=e.target.closest('[data-select-sku]');if(!c)return;
+        if(c.checked)selectedSku.add(c.dataset.selectSku);else selectedSku.delete(c.dataset.selectSku);
+        renderProducts();
+      });
+      $('selectPage').addEventListener('change',e=>{
+        for(const key of shownPageSku){if(e.target.checked)selectedSku.add(key);else selectedSku.delete(key);}
+        renderProducts();
+      });
+      $('deleteSelectedBtn').addEventListener('click',()=>deleteSkuGroups([...selectedSku]));
+      $('deleteAllBtn').addEventListener('click',()=>deleteSkuGroups(activeProducts().map(p=>p.sku.trim().toUpperCase()),true));
+      $('showArchivedBtn').addEventListener('click',()=>{showArchived=!showArchived;renderArchivedList();});
+      $('archivedRows').addEventListener('click',e=>{const btn=e.target.closest('[data-restore-sku]');if(btn)restoreSkuGroup(btn.dataset.restoreSku.trim().toUpperCase());});
       $('productRows').addEventListener('click',e=>{
         const add=e.target.closest('[data-add-size]');
         if(add){const key=add.dataset.addSize;const groupProducts=activeProducts().filter(p=>p.sku.trim().toUpperCase()===key);if(groupProducts.length){openProduct(null,{sku:groupProducts[0].sku,name:groupProducts[0].name,variants:groupProducts});expandedSku=key;}return;}
@@ -1390,30 +1502,6 @@
       });
       if(isLocalServer())localKream('/api/poizon/status').then(d=>{if(d.configured)poizonMessage('POIZON API 키 설정됨. 연결 테스트를 진행해 주세요.');}).catch(()=>{});
 
-      // Non-secret user preferences persist in the same browser origin after app upgrades.
-      const PREFERENCES_KEY='stocknote-ui-preferences-v74';
-      const preferenceIds=['naverDays','poizonDays','orderChannel','lowFilter','showZeroSizes'];
-      try {
-        const savedPreferences=JSON.parse(localStorage.getItem(PREFERENCES_KEY)||'{}');
-        for(const id of preferenceIds){
-          const element=$(id),value=savedPreferences[id];
-          if(value===undefined||!element)continue;
-          if(element.type==='checkbox'&&typeof value==='boolean')element.checked=value;
-          else if(element.tagName==='SELECT'&&typeof value==='string'&&Array.from(element.options).some(x=>x.value===value))element.value=value;
-        }
-      }catch(_) {}
-      for(const id of preferenceIds){
-        $(id).addEventListener('change',()=>{
-          try {
-            const saved=JSON.parse(localStorage.getItem(PREFERENCES_KEY)||'{}');
-            for(const key of preferenceIds) {
-              const element=$(key);
-              saved[key]=element.type==='checkbox'?element.checked:element.value;
-            }
-            localStorage.setItem(PREFERENCES_KEY,JSON.stringify(saved));
-          }catch(_) {}
-        });
-      }
       // Update requests originate only from the local StockNote UI.
       const updateState={release:null,installing:false};
       const updateStatus=$('updateStatus');
