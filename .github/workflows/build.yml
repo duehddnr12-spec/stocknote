@@ -28,6 +28,8 @@ jobs:
         run: python -m pip install -r requirements-build.txt
       - name: Validate Python
         run: python -m py_compile build_app.py 재고노트_통합API_로컬서버.py
+      - name: Updater safety tests
+        run: python -m unittest discover -s tests -v
       - name: Package app
         run: python build_app.py
       - uses: actions/upload-artifact@v4
@@ -49,16 +51,24 @@ jobs:
           merge-multiple: true
       - name: Verify packages
         run: test -s release/StockNote_Windows.zip && test -s release/StockNote_Mac.zip
+      - name: Record SHA-256 checksums
+        working-directory: release
+        run: sha256sum StockNote_Windows.zip StockNote_Mac.zip > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v7.3.0-preview' }}
-          name: StockNote v7.3.0 preview
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v7.4.0-preview' }}
+          name: StockNote v7.4.0 preview
           body: |
             Windows 및 Mac 독립형 재고관리 앱의 미리보기 배포입니다.
-            옵션별 상품 관리, 입출고, CSV 주문 불러오기 및 API 연결 화면을 테스트할 수 있습니다.
+            옵션별 상품 관리, 입출고, CSV 주문 불러오기, API 연결, GitHub 업데이트 확인 및 사용자 승인 설치 기능을 제공합니다.
+            업데이트 전 상품·기록 백업을 자동 저장하고 GitHub SHA-256 해시로 설치 파일을 검증합니다.
+            기존 v7.3 사용자는 v7.4를 최초 1회 수동 설치해야 이후 자동 업데이트 기능을 사용할 수 있습니다.
+            재고는 같은 브라우저/주소에서 유지되지만, API 시크릿은 서버 메모리에만 저장되어 앱 재시작 후 재입력이 필요합니다.
             스마트스토어와 POIZON 공식 API 주문 조회를 구현했으나 실계정 권한 확인이 필요합니다. KREAM은 승인된 자체 API 주소와 인증 명세가 없으면 자동 조회가 불가능합니다.
             서명/공증이 없는 테스트용 앱이므로 운영체제 보안 경고가 표시될 수 있습니다.
             실제 재고 사용 전 반드시 백업하세요.
-          files: release/*.zip
+          files: |
+            release/*.zip
+            release/SHA256SUMS.txt
           fail_on_unmatched_files: true
           generate_release_notes: true
