@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - "v*"
+concurrency:
+  group: stocknote-build-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
