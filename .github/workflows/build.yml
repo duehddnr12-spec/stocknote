@@ -56,8 +56,8 @@ jobs:
         run: sha256sum StockNote_Windows.zip StockNote_Mac.zip > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v7.4.0-preview' }}
-          name: StockNote v7.4.0 preview
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v7.5.0-preview' }}
+          name: StockNote v7.5.0 preview
           body: |
             Windows 및 Mac 독립형 재고관리 앱의 미리보기 배포입니다.
             옵션별 상품 관리, 입출고, CSV 주문 불러오기, API 연결, GitHub 업데이트 확인 및 사용자 승인 설치 기능을 제공합니다.
