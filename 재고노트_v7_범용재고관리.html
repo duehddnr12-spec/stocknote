@@ -1390,6 +1390,30 @@
       });
       if(isLocalServer())localKream('/api/poizon/status').then(d=>{if(d.configured)poizonMessage('POIZON API 키 설정됨. 연결 테스트를 진행해 주세요.');}).catch(()=>{});
 
+      // Non-secret user preferences persist in the same browser origin after app upgrades.
+      const PREFERENCES_KEY='stocknote-ui-preferences-v74';
+      const preferenceIds=['naverDays','poizonDays','orderChannel','lowFilter','showZeroSizes'];
+      try {
+        const savedPreferences=JSON.parse(localStorage.getItem(PREFERENCES_KEY)||'{}');
+        for(const id of preferenceIds){
+          const element=$(id),value=savedPreferences[id];
+          if(value===undefined||!element)continue;
+          if(element.type==='checkbox'&&typeof value==='boolean')element.checked=value;
+          else if(element.tagName==='SELECT'&&typeof value==='string'&&Array.from(element.options).some(x=>x.value===value))element.value=value;
+        }
+      }catch(_) {}
+      for(const id of preferenceIds){
+        $(id).addEventListener('change',()=>{
+          try {
+            const saved=JSON.parse(localStorage.getItem(PREFERENCES_KEY)||'{}');
+            for(const key of preferenceIds) {
+              const element=$(key);
+              saved[key]=element.type==='checkbox'?element.checked:element.value;
+            }
+            localStorage.setItem(PREFERENCES_KEY,JSON.stringify(saved));
+          }catch(_) {}
+        });
+      }
       // Update requests originate only from the local StockNote UI.
       const updateState={release:null,installing:false};
       const updateStatus=$('updateStatus');
