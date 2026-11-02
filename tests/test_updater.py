@@ -83,7 +83,7 @@ class UpdateSafetyTests(unittest.TestCase):
                 parser_command=(
                     "$tokens=$null; $errors=$null; "
                     "[System.Management.Automation.Language.Parser]::ParseFile("
-                    +repr(str(Path(cmd[cmd.index('-File')+1])).replace("'","''"))
+                    +"'"+str(Path(cmd[cmd.index('-File')+1])).replace("'","''")+"'"
                     +",[ref]$tokens,[ref]$errors) | Out-Null; "
                     "if($errors.Count -gt 0){$errors | Out-String | Write-Output; exit 1}"
                 )
