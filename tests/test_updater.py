@@ -4,6 +4,9 @@ import json
 import os
 import platform
 import tempfile
+import subprocess
+import shutil
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -20,14 +23,14 @@ class UpdateSafetyTests(unittest.TestCase):
         releases=[
           {'tag_name':'v7.5.0','draft':False,'assets':[]},
           {'tag_name':'v7.5.2-preview','draft':False,'assets':[]},
-          {'tag_name':'v7.5.4-preview','draft':False,'assets':[]},
+          {'tag_name':'v7.5.5-preview','draft':False,'assets':[]},
           {'tag_name':'v7.9.0-preview','draft':True,'assets':[]}]
         with patch.object(u,'github_json',return_value=releases):
-            self.assertEqual(u.newest()['tag_name'],'v7.5.4-preview')
+            self.assertEqual(u.newest()['tag_name'],'v7.5.5-preview')
     def test_bundled_version_agrees_with_ui(self):
         from pathlib import Path
         html=(Path(__file__).resolve().parent.parent/'재고노트_v7_범용재고관리.html').read_text(encoding='utf-8')
-        self.assertEqual(u.VERSION,'7.5.3-preview')
+        self.assertEqual(u.VERSION,'7.5.4-preview')
         self.assertIn('현재 버전 v'+u.VERSION+' ·', html)
         self.assertIn('업데이트 설치 ·', html)
 
@@ -42,12 +45,12 @@ class UpdateSafetyTests(unittest.TestCase):
                 self.assertIn('앱 실행 파일',u.install_preflight())
 
     def test_available_update_check_has_actionable_result(self):
-        release={'tag_name':'v7.5.4-preview','draft':False,'assets':[{'name':'StockNote_Windows.zip'}]}
+        release={'tag_name':'v7.5.5-preview','draft':False,'assets':[{'name':'StockNote_Windows.zip'}]}
         with patch.object(u,'newest',return_value=release),patch.object(u,'get_asset',return_value=release['assets'][0]),patch.object(u,'install_preflight',return_value=None):
             info=u.check()
             self.assertTrue(info['installable'])
-            self.assertEqual(info['current'],'7.5.3-preview')
-            self.assertEqual(info['tag'],'v7.5.4-preview')
+            self.assertEqual(info['current'],'7.5.4-preview')
+            self.assertEqual(info['tag'],'v7.5.5-preview')
         with patch.object(u,'newest',return_value=release),patch.object(u,'get_asset',return_value=release['assets'][0]),patch.object(u,'install_preflight',return_value='권한 없음'):
             info=u.check()
             self.assertFalse(info['installable'])
@@ -60,6 +63,42 @@ class UpdateSafetyTests(unittest.TestCase):
             mac=Path(folder)/'StockNote.app'/'Contents'/'MacOS'/'StockNote'
             self.assertEqual(u.app_target(system='Darwin',executable=str(mac)),(Path(folder)/'StockNote.app').resolve())
         self.assertEqual(u.get_asset({'assets':[{'name':'StockNote_Mac.zip'}]},'Darwin')['name'],'StockNote_Mac.zip')
+    def test_installer_status_and_generated_scripts(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(u,'app_data',return_value=Path(folder)):
+            u.update_status('ready to install')
+            self.assertEqual(u.last_update_status(),'ready to install')
+            src=Path(folder)/'stage'/'StockNote.exe'
+            target=Path(folder)/'app'/'StockNote.exe'
+            src.parent.mkdir()
+            target.parent.mkdir()
+            cmd=u.helper(src,target,99999999,'Windows')
+            self.assertEqual(cmd[0],'powershell.exe')
+            self.assertIn('-Status',cmd)
+            script=Path(cmd[cmd.index('-File')+1]).read_text(encoding='utf-8-sig')
+            self.assertIn('Start-Sleep -Milliseconds 750',script)
+            self.assertIn('기존 실행파일이 다른 프로세스',script)
+            self.assertIn('업데이트 완료:',script)
+            self.assertIn('$newInstalled=$true',script)
+            if platform.system()=='Windows':
+                parser_command=(
+                    "$tokens=$null; $errors=$null; "
+                    "[System.Management.Automation.Language.Parser]::ParseFile("
+                    +repr(str(Path(cmd[cmd.index('-File')+1])).replace("'","''"))
+                    +",[ref]$tokens,[ref]$errors) | Out-Null; "
+                    "if($errors.Count -gt 0){$errors | Out-String | Write-Output; exit 1}"
+                )
+                subprocess.run(['powershell.exe','-NoProfile','-Command',parser_command],check=True,timeout=30)
+                shutil.copy2(sys.executable,src)
+                target.write_bytes(b'old executable')
+                run=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=45)
+                self.assertEqual(run.returncode,0,run.stderr)
+                self.assertEqual(target.stat().st_size,src.stat().st_size if src.exists() else Path(sys.executable).stat().st_size)
+                self.assertIn('업데이트 완료',u.last_update_status())
+            else:
+                mac=u.helper(Path(folder)/'new.app',Path(folder)/'old.app',99999999,'Darwin')
+                self.assertEqual(mac[0],'/bin/sh')
+                subprocess.run(['/bin/sh','-n',mac[1]],check=True,timeout=15)
+
     def test_untrusted_download_rejected(self):
         for url in ['http://github.com/'+u.REPO+'/releases/download/v7.5/a.zip',
                     'https://evil.com/'+u.REPO+'/releases/download/a',
