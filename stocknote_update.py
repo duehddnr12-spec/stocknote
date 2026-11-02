@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import requests
 
-VERSION = '7.5.3-preview'
+VERSION = '7.5.4-preview'
 REPO = 'duehddnr12-spec/stocknote'
 API = 'https://api.github.com/repos/' + REPO + '/releases?per_page=30'
 TAG = re.compile(r'^v(\d+)\.(\d+)\.(\d+)(-preview)?$')
@@ -74,7 +74,8 @@ def check():
     return {'current':VERSION,'available':bool(rel and asset),'tag':rel['tag_name'] if rel and asset else None,
             'installable':bool(rel and asset and not reason),
             'reason':reason or ('' if rel and asset else '설치 가능한 최신 업데이트가 없습니다.'),
-            'releaseUrl':rel.get('html_url') if rel and asset else None}
+            'releaseUrl':rel.get('html_url') if rel and asset else None,
+            'lastStatus':last_update_status()}
 
 def official(url):
     p=urlparse(url)
@@ -144,39 +145,98 @@ def backup(snapshot):
     token=secrets.token_urlsafe(32);PENDING.clear();PENDING[token]=time.monotonic()
     return {'token':token,'message':'업데이트 전 재고 백업 완료'}
 
+def update_status(message):
+    """Store only installer progress; never log personal stock or API credentials."""
+    app_data().joinpath('update_status.txt').write_text(str(message)[:600], encoding='utf-8')
+
+def last_update_status():
+    try:
+        return (app_data()/'update_status.txt').read_text(encoding='utf-8')[:600]
+    except (OSError,UnicodeError):
+        return ''
+
 def helper(src,target,pid,system):
     directory=app_data()
     back=target.with_name(target.name+'.previous-'+time.strftime('%Y%m%d_%H%M%S'))
+    status=directory/'update_status.txt'
     if system=='Windows':
-        script=directory/'apply_update.ps1'
-        script.write_text("""param([int]$OldPid,[string]$Source,[string]$Target,[string]$Backup)
+        script=directory/('apply_update_'+secrets.token_hex(4)+'.ps1')
+        script.write_text("""param([int]$OldPid,[string]$Source,[string]$Target,[string]$Backup,[string]$Status)
 $ErrorActionPreference='Stop'
-for($i=0;$i -lt 90;$i++){if(-not (Get-Process -Id $OldPid -ErrorAction SilentlyContinue)){break};Start-Sleep -Seconds 1}
-if(Get-Process -Id $OldPid -ErrorAction SilentlyContinue){exit 2}
-try{
-if(Test-Path -LiteralPath $Target){Move-Item -LiteralPath $Target -Destination $Backup -ErrorAction Stop}
-Move-Item -LiteralPath $Source -Destination $Target -ErrorAction Stop
-Start-Process -FilePath $Target
-}catch{
-if(-not (Test-Path -LiteralPath $Target) -and (Test-Path -LiteralPath $Backup)){Move-Item -LiteralPath $Backup -Destination $Target}
-exit 1
+function State([string]$message) {
+  try { [System.IO.File]::WriteAllText($Status,$message,[System.Text.Encoding]::UTF8) } catch {}
+}
+State '앱 종료 대기 중'
+for($i=0;$i -lt 120;$i++){
+  if(-not (Get-Process -Id $OldPid -ErrorAction SilentlyContinue)){break}
+  Start-Sleep -Seconds 1
+}
+if(Get-Process -Id $OldPid -ErrorAction SilentlyContinue){
+  State '업데이트 실패: 기존 재고노트 프로세스가 종료되지 않았습니다.'
+  exit 2
+}
+$originalMoved=$false
+try {
+  State '기존 실행파일 잠금 해제 대기 중'
+  # PyInstaller onefile can retain the exe lock in its parent bootloader
+  # for a short time even after the HTTP child process exits.
+  if(Test-Path -LiteralPath $Target){
+    $moved=$false
+    for($i=0;$i -lt 90;$i++){
+      try {
+        Move-Item -LiteralPath $Target -Destination $Backup -ErrorAction Stop
+        $moved=$true
+        $originalMoved=$true
+        break
+      } catch {
+        Start-Sleep -Milliseconds 750
+      }
+    }
+    if(-not $moved){throw '기존 실행파일이 다른 프로세스에서 사용 중이거나 폴더 쓰기 권한이 없습니다.'}
+  }
+  State '새 실행파일 설치 중'
+  Move-Item -LiteralPath $Source -Destination $Target -ErrorAction Stop
+  Start-Process -FilePath $Target -WorkingDirectory (Split-Path -Parent $Target) -ErrorAction Stop
+  State '업데이트 완료: 새 재고노트가 실행되었습니다.'
+} catch {
+  $failure='업데이트 실패: '+$_.Exception.Message
+  if($originalMoved -and -not (Test-Path -LiteralPath $Target) -and (Test-Path -LiteralPath $Backup)){
+    try { Move-Item -LiteralPath $Backup -Destination $Target -ErrorAction Stop }
+    catch { $failure=$failure+' / 이전 버전 복구 실패: '+$_.Exception.Message }
+  }
+  State $failure
+  exit 1
 }
 """,encoding='utf-8-sig')
-        return ['powershell.exe','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',str(script),'-OldPid',str(pid),'-Source',str(src),'-Target',str(target),'-Backup',str(back)]
-    script=directory/'apply_update.sh'
+        return ['powershell.exe','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',str(script),'-OldPid',str(pid),'-Source',str(src),'-Target',str(target),'-Backup',str(back),'-Status',str(status)]
+    script=directory/('apply_update_'+secrets.token_hex(4)+'.sh')
     script.write_text("""#!/bin/sh
-OLDPID="$1"; SOURCE="$2"; TARGET="$3"; BACKUP="$4"
+OLDPID="$1"; SOURCE="$2"; TARGET="$3"; BACKUP="$4"; STATUS="$5"
+status(){ printf '%s\\n' "$1" > "$STATUS" 2>/dev/null || true; }
+status '앱 종료 대기 중'
 i=0
-while kill -0 "$OLDPID" 2>/dev/null; do i=$((i+1)); if [ "$i" -ge 90 ]; then exit 2; fi; sleep 1; done
-if [ -e "$TARGET" ]; then mv "$TARGET" "$BACKUP" || exit 1; fi
+while kill -0 "$OLDPID" 2>/dev/null; do
+  i=$((i+1))
+  if [ "$i" -ge 120 ]; then status '업데이트 실패: 이전 프로세스가 종료되지 않았습니다.'; exit 2; fi
+  sleep 1
+done
+status '새 앱 설치 중'
+if [ -e "$TARGET" ]; then
+  if ! mv "$TARGET" "$BACKUP"; then status '업데이트 실패: 기존 앱을 이동할 수 없습니다.'; exit 1; fi
+fi
 if ! mv "$SOURCE" "$TARGET"; then
   if [ -e "$BACKUP" ]; then mv "$BACKUP" "$TARGET"; fi
+  status '업데이트 실패: 새 앱 설치에 실패하여 이전 버전 복구를 시도했습니다.'
   exit 1
 fi
-open "$TARGET" || exit 3
+if ! open "$TARGET"; then
+  status '업데이트 실패: 새 앱 파일은 설치했지만 실행하지 못했습니다.'
+  exit 3
+fi
+status '업데이트 완료: 새 재고노트가 실행되었습니다.'
 """,encoding='utf-8')
     os.chmod(script,0o700)
-    return ['/bin/sh',str(script),str(pid),str(src),str(target),str(back)]
+    return ['/bin/sh',str(script),str(pid),str(src),str(target),str(back),str(status)]
 
 def install(tag,backup_token):
     with LOCK:
@@ -197,6 +257,7 @@ def install(tag,backup_token):
         if actual!=expected:raise RuntimeError('SHA-256 검증 실패: 설치하지 않았습니다.')
         source=unpack(archive,work/'stage',system)
         cmd=helper(source,target,os.getpid(),system)
+        update_status('업데이트 다운로드 및 검증 완료 · 프로그램 종료 준비 중')
         subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
                          creationflags=0x00000008 if system=='Windows' else 0,start_new_session=system!='Windows')
         return {'scheduled':True,'message':tag+' 다운로드·SHA-256 검증 완료. 앱을 종료하고 설치 후 다시 실행합니다.'}
