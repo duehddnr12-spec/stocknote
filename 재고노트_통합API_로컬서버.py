@@ -604,6 +604,11 @@ class Handler(BaseHTTPRequestHandler):
             data=json.loads(self.rfile.read(n))
             if not isinstance(data,dict):raise ValueError('JSON 객체가 필요합니다.')
             path=urlparse(self.path).path
+            if path=='/api/app/quit':
+                exit_timer=Timer(0.8,lambda:os._exit(0))
+                exit_timer.daemon=True
+                exit_timer.start()
+                return self.respond(200,{'message':'재고노트 로컬 서버를 종료합니다.'})
             if path=='/api/update/backup':
                 return self.respond(200, stocknote_update.backup(data))
             if path=='/api/update/install':
@@ -658,7 +663,14 @@ if __name__ == '__main__':
     try:
         httpd = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
     except OSError:
-        raise SystemExit('포트 8765가 사용 중입니다. 기존 재고노트 서버를 종료해 주세요.')
+        message='재고노트가 이미 실행 중입니다. 기존 재고노트를 종료하고 새 버전을 실행해 주세요. (포트 8765 사용 중)'
+        if sys.platform=='win32' and getattr(sys,'frozen',False):
+            try:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(None,message,'재고노트 중복 실행',0x30)
+            except (OSError,AttributeError):
+                pass
+        raise SystemExit(message)
     webbrowser.open(f'http://127.0.0.1:{PORT}/')
     try:
         httpd.serve_forever()
