@@ -176,6 +176,7 @@ if(Get-Process -Id $OldPid -ErrorAction SilentlyContinue){
   exit 2
 }
 $originalMoved=$false
+$newInstalled=$false
 try {
   State '기존 실행파일 잠금 해제 대기 중'
   # PyInstaller onefile can retain the exe lock in its parent bootloader
@@ -196,13 +197,20 @@ try {
   }
   State '새 실행파일 설치 중'
   Move-Item -LiteralPath $Source -Destination $Target -ErrorAction Stop
+  $newInstalled=$true
   Start-Process -FilePath $Target -WorkingDirectory (Split-Path -Parent $Target) -ErrorAction Stop
   State '업데이트 완료: 새 재고노트가 실행되었습니다.'
 } catch {
   $failure='업데이트 실패: '+$_.Exception.Message
-  if($originalMoved -and -not (Test-Path -LiteralPath $Target) -and (Test-Path -LiteralPath $Backup)){
-    try { Move-Item -LiteralPath $Backup -Destination $Target -ErrorAction Stop }
-    catch { $failure=$failure+' / 이전 버전 복구 실패: '+$_.Exception.Message }
+  if($originalMoved -and (Test-Path -LiteralPath $Backup)){
+    try {
+      if($newInstalled -and (Test-Path -LiteralPath $Target)) {
+        Move-Item -LiteralPath $Target -Destination ($Target+'.failed-'+[DateTime]::UtcNow.Ticks) -ErrorAction Stop
+      }
+      if(-not (Test-Path -LiteralPath $Target)){
+        Move-Item -LiteralPath $Backup -Destination $Target -ErrorAction Stop
+      }
+    } catch { $failure=$failure+' / 이전 버전 복구 실패: '+$_.Exception.Message }
   }
   State $failure
   exit 1
