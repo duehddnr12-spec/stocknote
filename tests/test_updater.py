@@ -88,12 +88,14 @@ class UpdateSafetyTests(unittest.TestCase):
                     "if($errors.Count -gt 0){$errors | Out-String | Write-Output; exit 1}"
                 )
                 subprocess.run(['powershell.exe','-NoProfile','-Command',parser_command],check=True,timeout=30)
-                shutil.copy2(sys.executable,src)
+                # Invalid Windows EXE forces Start-Process to fail, so we can
+                # exercise rollback without leaving a process running or locked.
+                src.write_bytes(b'not a Windows executable')
                 target.write_bytes(b'old executable')
                 run=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=45)
-                self.assertEqual(run.returncode,0,run.stderr)
-                self.assertEqual(target.stat().st_size,src.stat().st_size if src.exists() else Path(sys.executable).stat().st_size)
-                self.assertIn('업데이트 완료',u.last_update_status())
+                self.assertNotEqual(run.returncode,0)
+                self.assertEqual(target.read_bytes(),b'old executable')
+                self.assertIn('업데이트 실패',u.last_update_status())
             else:
                 mac=u.helper(Path(folder)/'new.app',Path(folder)/'old.app',99999999,'Darwin')
                 self.assertEqual(mac[0],'/bin/sh')
