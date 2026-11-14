@@ -13,6 +13,7 @@ LOCK = threading.Lock()
 PENDING = {}
 MAX_BACKUP = 85 * 1024 * 1024
 MAX_ARCHIVE = 180 * 1024 * 1024
+INSTALLER_READY = '앱 종료 대기 중'
 
 def app_data():
     p = (Path(os.environ.get('LOCALAPPDATA') or Path.home()/'AppData'/'Local') if platform.system()=='Windows'
@@ -283,23 +284,40 @@ exit 3
     return ['/bin/sh',str(script),str(pid),str(src),str(target),str(back),str(status),tag.removeprefix('v'),str(port)]
 
 def launch_installer(command, system):
-    options = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                   creationflags=0x00000008 if system=='Windows' else 0,
-                   start_new_session=system!='Windows')
-    if system != 'Windows' or not getattr(sys,'frozen',False):
-        return subprocess.Popen(command, **options)
+    directory = app_data()
+    options = dict(stdin=subprocess.DEVNULL, cwd=directory, start_new_session=system!='Windows')
+    set_dll_directory = None
+    if system == 'Windows':
+        # Give PowerShell a console, hidden from the user, even when StockNote has none.
+        startup = subprocess.STARTUPINFO()
+        startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startup.wShowWindow = subprocess.SW_HIDE
+        options.update(creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=startup)
+        if getattr(sys,'frozen',False):
+            import ctypes
+            set_dll_directory = ctypes.windll.kernel32.SetDllDirectoryW
+            set_dll_directory.argtypes = [ctypes.c_wchar_p]
 
-    # A system PowerShell process must not inherit the bundled DLL search directory.
-    import ctypes
-    set_dll_directory = ctypes.windll.kernel32.SetDllDirectoryW
-    set_dll_directory.argtypes = [ctypes.c_wchar_p]
-    if not set_dll_directory(None):
-        raise ctypes.WinError()
-    try:
-        options['cwd'] = str(Path(command[command.index('-File') + 1]).parent)
-        return subprocess.Popen(command, **options)
-    finally:
-        set_dll_directory(sys._MEIPASS)
+    with (directory/'update_installer.log').open('wb') as log:
+        # A system PowerShell process needs the default DLL search directory.
+        if set_dll_directory is not None and not set_dll_directory(None):
+            raise ctypes.WinError()
+        try:
+            process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT, **options)
+        finally:
+            if set_dll_directory is not None:
+                set_dll_directory(sys._MEIPASS)
+
+    deadline = time.monotonic() + 12
+    while time.monotonic() < deadline:
+        exit_code = process.poll()
+        if exit_code is not None:
+            raise OSError(f'설치 도우미가 시작 중 종료되었습니다. (종료 코드 {exit_code})')
+        if last_update_status().strip() == INSTALLER_READY:
+            return
+        time.sleep(.1)
+    process.terminate()
+    raise OSError('설치 도우미의 시작을 확인하지 못했습니다.')
 
 def install(tag,backup_token):
     with LOCK:
@@ -324,6 +342,6 @@ def install(tag,backup_token):
         try:
             launch_installer(cmd,system)
         except OSError as error:
-            update_status('업데이트 설치를 시작하지 못했습니다. GitHub에서 설치 파일을 내려받아 설치해 주세요.')
+            update_status('업데이트 설치를 시작하지 못했습니다. '+str(error)[:240])
             raise RuntimeError(last_update_status()) from error
         return {'scheduled':True,'message':tag+' 다운로드·SHA-256 검증 완료. 앱을 종료하고 설치 후 다시 실행합니다.'}

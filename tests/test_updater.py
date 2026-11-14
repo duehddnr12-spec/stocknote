@@ -130,10 +130,17 @@ port = {port}
 if not (state/'first-launch').exists():
     (state/'first-launch').touch()
     command = updater.helper(Path({str(root/'incoming'/'StockNote.exe')!r}), Path(sys.executable), os.getpid(), 'Windows', 'v'+updater.VERSION, port)
-    updater.launch_installer(command, 'Windows')
-    sys.exit(0)
+    try:
+        updater.launch_installer(command, 'Windows')
+    except OSError as error:
+        updater.update_status('업데이트 실패: '+str(error))
+        sys.exit(1)
+    os._exit(0)
 
 class Handler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
     def do_GET(self):
         if self.path != '/api/app/version':
             self.send_error(404)
@@ -161,8 +168,13 @@ with ThreadingHTTPServer(('127.0.0.1',port),Handler) as server:
                            cwd=root,check=True,timeout=150,capture_output=True)
             target=app_dir/'StockNote.exe'
             shutil.copy2(root/'incoming'/'StockNote.exe',target)
-            subprocess.run([str(target)],cwd=app_dir,check=True,timeout=30,capture_output=True)
+            initial = subprocess.run([str(target)],cwd=app_dir,timeout=30,capture_output=True)
             status_file=state_dir/'update_status.txt'
+            log_file=state_dir/'update_installer.log'
+            if initial.returncode:
+                self.fail(f'Could not start the installer: {initial.returncode}, '
+                          f'{status_file.read_bytes() if status_file.exists() else b""!r}, '
+                          f'{log_file.read_bytes()[:3000] if log_file.exists() else b""!r}')
             deadline=time.monotonic()+65
             last=''
             while time.monotonic()<deadline:
@@ -174,7 +186,8 @@ with ThreadingHTTPServer(('127.0.0.1',port),Handler) as server:
                     if last.startswith(('업데이트 완료:','업데이트 실패:')):
                         break
                 time.sleep(.25)
-            self.assertTrue(last.startswith('업데이트 완료:'),last)
+            self.assertTrue(last.startswith('업데이트 완료:'),
+                            f'{last!r}, {log_file.read_bytes()[:3000] if log_file.exists() else b""!r}')
             self.assertTrue(target.is_file())
             self.assertEqual(len(list(app_dir.glob('StockNote.exe.previous-*'))),1)
             # The test app exits after answering the health check, then releases its EXE lock.
