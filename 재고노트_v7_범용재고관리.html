@@ -304,6 +304,8 @@ th:last-child, td:last-child { padding-right: 17px; }
 .prod-sub, .group-count { color: var(--faint); font-size: 11px; margin-top: 2px; }
 .group-total { font-size: 16px; font-weight: 760; letter-spacing: -.03em; white-space: nowrap; }
 .group-total small { font-size: 11px; color: var(--sub); font-weight: 590; }
+.group-available { color: var(--primary-deep); font-size: 11px; font-weight: 680; }
+.group-status { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .option-count { font-size: 13px; font-weight: 660; white-space: nowrap; }
 .option-count span { color: var(--faint); font-weight: 530; }
 .select-cell { width: 46px; text-align: center; }
@@ -325,6 +327,9 @@ th:last-child, td:last-child { padding-right: 17px; }
 .size-quantity { margin-top: 5px; color: var(--primary); font-weight: 700; }
 .size-card.low .size-quantity { color: var(--amber); }
 .size-card.sold .size-quantity { color: var(--red); }
+.size-reserved { color: var(--sub); font-size: 11px; }
+.size-available { color: var(--primary-deep); font-size: 12px; font-weight: 740; }
+.size-shortage { color: var(--red); font-size: 11px; font-weight: 720; }
 .size-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
 .size-actions .btn { padding-inline: 3px; }
 .resultbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 17px; border-top: 1px solid var(--line); color: var(--sub); font-size: 12px; }
@@ -408,6 +413,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
 .order-preview .table-wrap { max-height: 300px; overflow: auto; }
 .order-preview .history-table { min-width: 630px; }
 .order-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+.order-shortage { margin-top: 4px; }
 .pill-cancel { background: #f2f0f6; color: var(--sub); }
 
 .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
@@ -612,7 +618,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
 
     <main class="content" aria-labelledby="screenTitle">
       <header class="heading">
-        <div><h1 id="screenTitle">재고 현황</h1><p id="screenHint">상품별 보유 옵션과 보충이 필요한 재고를 확인하세요.</p></div>
+        <div><h1 id="screenTitle">재고 현황</h1><p id="screenHint">판매 가능 수량은 연결된 발송준비 주문을 반영해 계산해요.</p></div>
         <div class="heading-actions" id="productActions">
           <button class="btn" id="bulkBtn" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>엑셀 일괄 등록</button>
           <button class="btn primary" id="addBtn" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>상품 등록</button>
@@ -709,6 +715,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
               <button type="button" class="filter-chip" data-order-filter="ready" aria-pressed="false">발송준비 <span id="ordersReady"></span></button>
               <button type="button" class="filter-chip" data-order-filter="shipping" aria-pressed="false">발송중 <span id="ordersShipping"></span></button>
               <button type="button" class="filter-chip" data-order-filter="issue" aria-pressed="false">확인 필요 <span id="ordersIssue"></span></button>
+              <button type="button" class="filter-chip" data-order-filter="shortage" aria-pressed="false">초과 주문 <span id="ordersShortage"></span></button>
             </div>
           </div>
           <div class="filters">
@@ -755,7 +762,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           </section>
           <section class="panel" aria-labelledby="updateHeading">
             <h2 class="panel-title" id="updateHeading">프로그램 업데이트</h2>
-            <p id="updateStatus" role="status">현재 버전 v7.5.6-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
+            <p id="updateStatus" role="status">현재 버전 v7.5.7-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
             <div class="bulk-actions">
               <button type="button" class="btn" id="updateCheckInline" disabled>새 버전 확인</button>
               <button type="button" class="btn primary" id="updateInstallBtn" disabled>백업 후 업데이트 설치</button>
@@ -1114,6 +1121,8 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
       }
       function render() {
         const products = activeProducts();
+        const orderProductIndex = state.orders.length ? indexOrderProducts(products) : null;
+        const pending = pendingStockByProduct(state, orderProductIndex);
         $('statProducts').innerHTML = number(new Set(products.map(p => p.sku.trim().toUpperCase())).size) + ' <small>종</small>';
         $('statStock').innerHTML = number(products.filter(p => p.stock > 0).length) + ' <small>개</small>';
         const lowOptions = products.filter(low);
@@ -1121,10 +1130,10 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         $('statLow').innerHTML = number(lowOptions.length - soldOut) + ' <small>개</small>';
         $('statZero').innerHTML = number(soldOut) + ' <small>개</small>';
         $('ordersTabCount').textContent = number(state.orders.length);
-        renderProducts();
+        renderProducts(pending);
         if (currentTab === 'history') renderHistory();
         renderSidebar(lowOptions);
-        if (currentTab === 'orders') renderOrders();
+        if (currentTab === 'orders') renderOrders(orderProductIndex, pending);
       }
       function syncCategoryFilter(){
         const sel=$('categoryFilter'),old=sel.value;
@@ -1272,7 +1281,26 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         }catch(e){notify('상품 복구 실패: '+e.message,true)}
         finally{deletionBusy=false;renderProducts()}
       }
-      function renderProducts(){
+      function renderStockOption(product, pending) {
+        const {id: productId, option, optionNames, stock, unit} = product;
+        const name = option || '기본';
+        const shortage = Math.max(0, pending - stock);
+        return `<div class="size-card ${stock === 0 ? 'sold' : low(product) ? 'low' : ''}">
+          <div class="size-number">${html(name)}</div>
+          ${optionNames?.length ? `<div class="size-caption">${html(optionNames.join(' / '))}</div>` : ''}
+          <div class="size-quantity">현재 ${number(stock)}${html(unit)} ${stock === 0 ? '· 품절' : low(product) ? '· 부족' : ''}</div>
+          <div class="size-reserved">발송준비 ${number(pending)}${html(unit)}</div>
+          <div class="size-available">판매 가능 ${number(Math.max(0, stock - pending))}${html(unit)}</div>
+          ${shortage ? `<div class="size-shortage">주문 초과 ${number(shortage)}${html(unit)}</div>` : ''}
+          <div class="size-actions">
+            <button type="button" class="btn sm" data-action="in" data-id="${html(productId)}">입고</button>
+            <button type="button" class="btn sm" data-action="out" data-id="${html(productId)}" ${stock === 0 ? 'disabled' : ''}>출고</button>
+            <button type="button" class="btn sm" data-action="edit" data-id="${html(productId)}" aria-label="${html(name)} 옵션 수정">수정</button>
+            <button type="button" class="btn sm danger" data-option-delete="${html(productId)}" aria-label="${html(name)} 옵션 삭제">삭제</button>
+          </div>
+        </div>`;
+      }
+      function renderProducts(pending=pendingStockByProduct(state)){
         const q=$('searchInput').value.trim().toLowerCase();
         document.querySelectorAll('[data-stock-filter]').forEach(button => {
           button.setAttribute('aria-pressed', String(button.dataset.stockFilter === stockFilter));
@@ -1301,10 +1329,14 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         const onPage=matched.slice((productPage-1)*PRODUCT_PAGE_SIZE,productPage*PRODUCT_PAGE_SIZE);
         $('productRows').innerHTML=onPage.map(g=>{
           const opened=expandedSku===g.key;
-          const shown = g.variants.filter(p => stockFilter === 'sold' ? p.stock === 0 : stockFilter === 'low' ? p.stock > 0 && low(p) : showZero || p.stock > 0)
+          const shown = g.variants.filter(p => stockFilter === 'sold' ? p.stock === 0 : stockFilter === 'low' ? p.stock > 0 && low(p) : showZero || p.stock > 0 || pending.has(p.id))
             .sort((a, b) => compareSize(a.option, b.option, g.category));
           const lowCount = g.variants.filter(p => p.stock > 0 && low(p)).length;
           const hasSoldOut = g.inStock < g.variants.length;
+          const available = g.variants.reduce((total, p) => total + Math.max(0, p.stock - (pending.get(p.id) || 0)), 0);
+          const hasShortage = g.variants.some(p => (pending.get(p.id) || 0) > p.stock);
+          const unit = g.variants[0].unit;
+          const sameUnit = g.variants.every(p => p.unit === unit);
           let [status, tone] = lowCount ? ['재고 부족', 'warning'] : ['정상', 'ok'];
           if (g.total === 0) [status, tone] = ['품절', 'sold'];
           else if (hasSoldOut && (stockFilter === 'sold' || !lowCount)) [status, tone] = ['일부 품절', 'sold'];
@@ -1312,11 +1344,11 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
               <td class="sku-column"><button type="button" class="group-toggle" data-sku-toggle="${html(g.key)}" aria-expanded="${opened}" aria-label="${html(g.sku)} 옵션 ${opened ? '닫기' : '보기'}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg><span class="sku-cell">${html(g.sku)}</span></button></td>
               <td class="name-column"><div class="prod-main">${html(g.name)}</div><div class="prod-sub">${html(g.category)}</div></td>
               <td class="option-column"><div class="option-count">${number(g.inStock)} <span>/ ${number(g.variants.length)}개</span></div></td>
-              <td class="quantity-column"><span class="group-total">${number(g.total)} <small>${html(g.variants[0]?.unit || '개')}</small></span></td>
-              <td class="status-column"><span class="stock-tag ${tone}">${status}</span></td>
+              <td class="quantity-column"><span class="group-total">${number(g.total)} <small>${html(unit)}</small></span>${sameUnit ? `<div class="group-available">판매 가능 ${number(available)}${html(unit)}</div>` : ''}</td>
+              <td class="status-column"><div class="group-status"><span class="stock-tag ${tone}">${status}</span>${hasShortage ? '<span class="badge low">주문 초과</span>' : ''}</div></td>
               <td class="action-column"><button type="button" class="btn sm" data-add-size="${html(g.key)}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>옵션</button></td>
-            </tr>${opened ? `<tr class="group-expanded"><td colspan="7"><div class="size-panel"><div class="size-panel-top"><div class="size-panel-hint">${stockFilter === 'sold' ? '품절 옵션' : stockFilter === 'low' ? '부족 옵션' : showZero ? '등록된 전체 옵션' : '보유 중인 옵션'}</div><button type="button" class="btn sm" data-add-size="${html(g.key)}">옵션 추가</button></div>
-               ${shown.length?`<div class="size-matrix">${shown.map(p=>`<div class="size-card ${p.stock===0?'sold':low(p)?'low':''}"><div class="size-number">${html(p.option||'기본')}</div>${p.optionNames?.length?`<div class="size-caption">${html(p.optionNames.join(' / '))}</div>`:''}<div class="size-quantity">${number(p.stock)}${html(p.unit)} ${p.stock===0?'· 품절':low(p)?'· 부족':''}</div><div class="size-actions"><button type="button" class="btn sm" data-action="in" data-id="${html(p.id)}">입고</button><button type="button" class="btn sm" data-action="out" data-id="${html(p.id)}" ${p.stock===0?'disabled':''}>출고</button><button type="button" class="btn sm" data-action="edit" data-id="${html(p.id)}" aria-label="${html(p.option||'기본')} 옵션 수정">수정</button><button type="button" class="btn sm danger" data-option-delete="${html(p.id)}" aria-label="${html(p.option||'기본')} 옵션 삭제">삭제</button></div></div>`).join('')}</div>`:`<div class="size-none">보유 중인 옵션이 없습니다. 품절 옵션을 표시하면 기존 옵션에 입고할 수 있어요.</div>`}
+            </tr>${opened ? `<tr class="group-expanded"><td colspan="7"><div class="size-panel"><div class="size-panel-top"><div class="size-panel-hint">${stockFilter === 'sold' ? '품절 옵션' : stockFilter === 'low' ? '부족 옵션' : showZero ? '등록된 전체 옵션' : '재고 또는 발송준비 주문이 있는 옵션'}</div><button type="button" class="btn sm" data-add-size="${html(g.key)}">옵션 추가</button></div>
+               ${shown.length?`<div class="size-matrix">${shown.map(p=>renderStockOption(p, pending.get(p.id) || 0)).join('')}</div>`:`<div class="size-none">보유 중인 옵션이 없습니다. 품절 옵션을 표시하면 기존 옵션에 입고할 수 있어요.</div>`}
                </div></td></tr>`:''}`;
         }).join('');
         const empty=!matched.length;
@@ -1460,7 +1492,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         return {wasArchived,wasProductArchived,delta:p.stock-before};
       }
       const screens = {
-        products: ['재고 현황', '상품별 보유 옵션과 보충이 필요한 재고를 확인하세요.'],
+        products: ['재고 현황', '판매 가능 수량은 연결된 발송준비 주문을 반영해 계산해요.'],
         orders: ['주문 관리', '주문을 등록하면 발송준비가 되고, 발송중으로 변경할 때 재고를 한 번 차감해요.'],
         history: ['입출고 기록', '상품별 재고가 언제, 얼마나 바뀌었는지 확인하세요.'],
         settings: ['설정', '재고 데이터를 백업하고 판매채널 연결 항목을 확인하세요.']
@@ -1511,21 +1543,11 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           : '<div class="side-empty">기록이 없습니다.</div>';
       }
 
-      function renderOrders() {
+      function renderOrders(index=state.orders.length ? indexOrderProducts(activeProducts()) : null,
+                            pending=pendingStockByProduct(state, index)) {
         const channel = $('ordersFilter').value;
         const query = $('orderSearch').value.trim().toLowerCase();
-        const counts = {all: 0, ready: 0, shipping: 0, issue: 0};
-        const products = activeProducts();
-        const byId = new Map();
-        const byVariant = new Map();
-        const bySku = new Map();
-        for (const product of products) {
-          byId.set(product.id, product);
-          byVariant.set(variantKey(product.sku, product.option), product);
-          const sku = product.sku.toUpperCase();
-          bySku.set(sku, bySku.has(sku) ? null : product);
-        }
-        const index = {byId, byVariant, bySku};
+        const counts = {all: 0, ready: 0, shipping: 0, issue: 0, shortage: 0};
         const list = [];
         for (const order of state.orders) {
           if (channel && order.channel !== channel) continue;
@@ -1536,18 +1558,23 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           const issue = order.issue || (!product ? '품번 또는 옵션 연결 필요' : '');
           const ready = status === 'active' && order.fulfillment !== 'shipping';
           const shipping = order.fulfillment === 'shipping' && status === 'active';
+          const pendingQty = product && countsTowardPendingStock(order, status) ? pending.get(product.id) || 0 : 0;
+          const shortage = pendingQty ? Math.max(0, pendingQty - product.stock) : 0;
           counts.all++;
           if (ready) counts.ready++;
           if (shipping) counts.shipping++;
           if (issue) counts.issue++;
-          if ((orderFilter === 'ready' && !ready) || (orderFilter === 'shipping' && !shipping) || (orderFilter === 'issue' && !issue)) continue;
-          list.push({order, product, issue, status, ready});
+          if (shortage) counts.shortage++;
+          if ((orderFilter === 'ready' && !ready) || (orderFilter === 'shipping' && !shipping) ||
+              (orderFilter === 'issue' && !issue) || (orderFilter === 'shortage' && !shortage)) continue;
+          list.push({order, product, issue, status, ready, pendingQty, shortage});
         }
 
         $('ordersAll').textContent = number(counts.all);
         $('ordersReady').textContent = number(counts.ready);
         $('ordersShipping').textContent = number(counts.shipping);
         $('ordersIssue').textContent = number(counts.issue);
+        $('ordersShortage').textContent = number(counts.shortage);
         document.querySelectorAll('[data-order-filter]').forEach(button => {
           button.setAttribute('aria-pressed', String(button.dataset.orderFilter === orderFilter));
         });
@@ -1555,7 +1582,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         const pages = Math.max(1, Math.ceil(list.length / ORDER_PAGE_SIZE));
         orderPage = Math.min(Math.max(1, orderPage), pages);
         const first = (orderPage - 1) * ORDER_PAGE_SIZE;
-        $('orderRows').innerHTML = list.slice(first, first + ORDER_PAGE_SIZE).map(({order, product, issue, status, ready}) => {
+        $('orderRows').innerHTML = list.slice(first, first + ORDER_PAGE_SIZE).map(({order, product, issue, status, ready, pendingQty, shortage}) => {
           const canShip = ready && !issue && !order.appliedQty;
           const ship = canShip ? `<button type="button" class="btn sm primary" data-ordership="${html(order.id)}">발송중으로 변경</button>` : '';
           const map = !order.appliedQty ? `<button type="button" class="btn sm" data-ordermap="${html(order.id)}">품번 연결</button>` : '';
@@ -1571,7 +1598,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
             <td class="order-quantity"><span class="mobile-label">주문수량 </span>${number(order.qty)}</td>
             <td class="order-source"><span class="badge ${channelStatusStyle}">${html(order.status)}</span></td>
             <td class="order-flow"><span class="badge ${flow === '발송중' ? 'ok' : ''}">${html(flow)}</span></td>
-            <td class="order-stock"><span class="badge ${stockStatusStyle}">${stockStatus}</span>${issue ? `<div class="prod-sub">${html(issue)}</div>` : ''}</td>
+            <td class="order-stock"><span class="badge ${stockStatusStyle}">${stockStatus}</span>${issue ? `<div class="prod-sub">${html(issue)}</div>` : ''}${shortage ? `<div class="order-shortage"><span class="badge low">주문 초과 ${number(shortage)}${html(product.unit)}</span><div class="prod-sub">해당 옵션 · 현재 ${number(product.stock)}${html(product.unit)} / 발송준비 ${number(pendingQty)}${html(product.unit)}</div></div>` : ''}</td>
             <td class="order-manage"><div class="order-actions">${ship}${map || (ship ? '' : '—')}</div></td>
           </tr>`;
         }).join('');
@@ -1742,8 +1769,13 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
       $('productNext').addEventListener('click',()=>{productPage++;expandedSku=null;renderProducts();});
       $('clearFilters').addEventListener('click',()=>{$('searchInput').value='';stockFilter='all';$('categoryFilter').value='';$('showZeroSizes').checked=false;expandedSku=null;productPage=1;renderProducts();});
       $('csvBtn').addEventListener('click',()=>{
-        const rows=[['품번','상품명','옵션','옵션 이름','재고 단위','재고수량','재고 상태','재고 부족 기준','상품종류']];
-        activeProducts().sort((a,b)=>compareSku(a.sku,b.sku)||compareSize(a.option,b.option,categoryLabel(a))).forEach(p=>rows.push([p.sku,p.name,p.option,(p.optionNames||[]).join(' / '),p.unit,p.stock,p.stock===0?'품절':low(p)?'재고 부족':'정상',LOW_STOCK_THRESHOLD,categoryLabel(p)]));
+        const pending=pendingStockByProduct(state);
+        const rows=[['품번','상품명','옵션','옵션 이름','재고 단위','재고수량','재고 상태','재고 부족 기준','상품종류','발송준비 수량','판매 가능 수량','주문 초과 수량']];
+        const products=activeProducts().sort((a,b)=>compareSku(a.sku,b.sku)||compareSize(a.option,b.option,categoryLabel(a)));
+        for(const p of products){
+          const reserved=pending.get(p.id)||0;
+          rows.push([p.sku,p.name,p.option,(p.optionNames||[]).join(' / '),p.unit,p.stock,p.stock===0?'품절':low(p)?'재고 부족':'정상',LOW_STOCK_THRESHOLD,categoryLabel(p),reserved,Math.max(0,p.stock-reserved),Math.max(0,reserved-p.stock)]);
+        }
         toCsv('재고상품_'+new Date().toISOString().slice(0,10)+'.csv',rows);notify('상품 목록 CSV 파일을 저장했습니다.');
       });
       $('exportHistoryBtn').addEventListener('click',()=>{
@@ -2029,6 +2061,16 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         return /^(배송중|배송완료|배송시작|배송출발|발송|발송완료|발송처리|출고완료|거래완료|판매완료|已发货|已完成)(?:$|[(/].*)/.test(v);
       };
       const effectiveSku=o=>o.mappedSku||o.sku;
+      function indexOrderProducts(products) {
+        const byId = new Map(), byVariant = new Map(), bySku = new Map();
+        for (const product of products) {
+          byId.set(product.id, product);
+          byVariant.set(variantKey(product.sku, product.option), product);
+          const sku = product.sku.toUpperCase();
+          bySku.set(sku, bySku.has(sku) ? null : product);
+        }
+        return {byId, byVariant, bySku};
+      }
       function findOrderProduct(o,d=state,index=null){
         if (index) {
           const targetId = o.mappedProductId || d.aliases[orderVariantAlias(o)];
@@ -2044,6 +2086,20 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         const legacy=o.mappedSku||d.aliases[orderKey(o.channel,o.sku)];
         if(legacy){const matches=d.products.filter(p=>!p.archived&&p.sku.toUpperCase()===String(legacy).toUpperCase());return matches.length===1?matches[0]:null;}
         return d.products.find(p=>!p.archived&&variantKey(p.sku,p.option)===variantKey(o.sku,o.option))||null;
+      }
+      function countsTowardPendingStock(order, status=normalizeStatus(order.status)) {
+        return status === 'active' && order.fulfillment !== 'shipping' && !order.appliedQty && validQty(order.qty, 1);
+      }
+      function pendingStockByProduct(data, index=null) {
+        const pending = new Map();
+        if (!data.orders.length) return pending;
+        index ??= indexOrderProducts(activeProducts(data));
+        for (const order of data.orders) {
+          if (!countsTowardPendingStock(order)) continue;
+          const product = findOrderProduct(order, data, index);
+          if (product) pending.set(product.id, (pending.get(product.id) || 0) + Number(order.qty));
+        }
+        return pending;
       }
       function orderFlowStatus(order) {
         const status = normalizeStatus(order.status);
