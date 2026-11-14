@@ -25,12 +25,14 @@ class UpdateSafetyTests(unittest.TestCase):
           {'tag_name':'v7.5.2-preview','draft':False,'assets':[]},
           {'tag_name':'v7.5.5-preview','draft':False,'assets':[]},
           {'tag_name':'v7.9.0-preview','draft':True,'assets':[]}]
-        with patch.object(u,'github_json',return_value=releases):
+        with patch.object(u,'VERSION','7.5.4-preview'), patch.object(u,'github_json',return_value=releases):
             self.assertEqual(u.newest()['tag_name'],'v7.5.5-preview')
     def test_bundled_version_agrees_with_ui(self):
         from pathlib import Path
         html=(Path(__file__).resolve().parent.parent/'재고노트_v7_범용재고관리.html').read_text(encoding='utf-8')
-        self.assertEqual(u.VERSION,'7.5.4-preview')
+        version = u.parse_version('v'+u.VERSION)
+        self.assertIsNotNone(version)
+        self.assertTrue(version[1])
         self.assertIn('현재 버전 v'+u.VERSION+' ·', html)
         self.assertIn('업데이트 설치 ·', html)
 
@@ -49,8 +51,8 @@ class UpdateSafetyTests(unittest.TestCase):
         with patch.object(u,'newest',return_value=release),patch.object(u,'get_asset',return_value=release['assets'][0]),patch.object(u,'install_preflight',return_value=None):
             info=u.check()
             self.assertTrue(info['installable'])
-            self.assertEqual(info['current'],'7.5.4-preview')
-            self.assertEqual(info['tag'],'v7.5.5-preview')
+            self.assertEqual(info['current'],u.VERSION)
+            self.assertEqual(info['tag'],release['tag_name'])
         with patch.object(u,'newest',return_value=release),patch.object(u,'get_asset',return_value=release['assets'][0]),patch.object(u,'install_preflight',return_value='권한 없음'):
             info=u.check()
             self.assertFalse(info['installable'])
