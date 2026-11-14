@@ -4,7 +4,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 import requests
 
-VERSION = '7.5.5-preview'
+VERSION = '7.5.6-preview'
+APP_PORT = 8765
 REPO = 'duehddnr12-spec/stocknote'
 API = 'https://api.github.com/repos/' + REPO + '/releases?per_page=30'
 TAG = re.compile(r'^v(\d+)\.(\d+)\.(\d+)(-preview)?$')
@@ -151,17 +152,17 @@ def update_status(message):
 
 def last_update_status():
     try:
-        return (app_data()/'update_status.txt').read_text(encoding='utf-8')[:600]
+        return (app_data()/'update_status.txt').read_text(encoding='utf-8-sig')[:600]
     except (OSError,UnicodeError):
         return ''
 
-def helper(src,target,pid,system):
+def helper(src,target,pid,system,tag,port=APP_PORT):
     directory=app_data()
     back=target.with_name(target.name+'.previous-'+time.strftime('%Y%m%d_%H%M%S'))
     status=directory/'update_status.txt'
     if system=='Windows':
         script=directory/('apply_update_'+secrets.token_hex(4)+'.ps1')
-        script.write_text("""param([int]$OldPid,[string]$Source,[string]$Target,[string]$Backup,[string]$Status)
+        script.write_text("""param([int]$OldPid,[string]$Source,[string]$Target,[string]$Backup,[string]$Status,[string]$Version,[int]$Port)
 $ErrorActionPreference='Stop'
 function State([string]$message) {
   try { [System.IO.File]::WriteAllText($Status,$message,[System.Text.Encoding]::UTF8) } catch {}
@@ -177,7 +178,9 @@ if(Get-Process -Id $OldPid -ErrorAction SilentlyContinue){
 }
 $originalMoved=$false
 $newInstalled=$false
+$staged=$Target+'.staged-'+[Guid]::NewGuid().ToString('N')
 try {
+  Copy-Item -LiteralPath $Source -Destination $staged -ErrorAction Stop
   State '기존 실행파일 잠금 해제 대기 중'
   # PyInstaller onefile can retain the exe lock in its parent bootloader
   # for a short time even after the HTTP child process exits.
@@ -196,10 +199,27 @@ try {
     if(-not $moved){throw '기존 실행파일이 다른 프로세스에서 사용 중이거나 폴더 쓰기 권한이 없습니다.'}
   }
   State '새 실행파일 설치 중'
-  Move-Item -LiteralPath $Source -Destination $Target -ErrorAction Stop
+  Move-Item -LiteralPath $staged -Destination $Target -ErrorAction Stop
   $newInstalled=$true
-  Start-Process -FilePath $Target -WorkingDirectory (Split-Path -Parent $Target) -ErrorAction Stop
-  State '업데이트 완료: 새 재고노트가 실행되었습니다.'
+  # The new executable has the same path but needs its own PyInstaller extraction.
+  $env:PYINSTALLER_RESET_ENVIRONMENT='1'
+  $process=Start-Process -FilePath $Target -WorkingDirectory (Split-Path -Parent $Target) -PassThru -ErrorAction Stop
+  State '새 재고노트 실행 확인 중'
+  $timer=[System.Diagnostics.Stopwatch]::StartNew()
+  while($timer.Elapsed.TotalSeconds -lt 45){
+    $process.Refresh()
+    if($process.HasExited){throw ('새 재고노트가 시작 중 종료되었습니다. (종료 코드 '+$process.ExitCode+')')}
+    try {
+      $app=Invoke-RestMethod -Uri ('http://127.0.0.1:'+$Port+'/api/app/version') -TimeoutSec 1 -ErrorAction Stop
+      if($app.version -eq $Version){
+        State '업데이트 완료: 새 재고노트가 실행되었습니다.'
+        exit 0
+      }
+    } catch {}
+    Start-Sleep -Milliseconds 750
+  }
+  State '새 실행 파일을 설치했습니다. 실행 확인이 지연되고 있으니 재고노트 화면을 다시 열어 주세요.'
+  exit 3
 } catch {
   $failure='업데이트 실패: '+$_.Exception.Message
   if($originalMoved -and (Test-Path -LiteralPath $Backup)){
@@ -209,17 +229,23 @@ try {
       }
       if(-not (Test-Path -LiteralPath $Target)){
         Move-Item -LiteralPath $Backup -Destination $Target -ErrorAction Stop
+        $failure=$failure+' / 이전 실행 파일을 복구했습니다. 재고노트를 다시 실행해 주세요.'
       }
     } catch { $failure=$failure+' / 이전 버전 복구 실패: '+$_.Exception.Message }
   }
   State $failure
   exit 1
+} finally {
+  Remove-Item -LiteralPath $staged -ErrorAction SilentlyContinue
 }
 """,encoding='utf-8-sig')
-        return ['powershell.exe','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',str(script),'-OldPid',str(pid),'-Source',str(src),'-Target',str(target),'-Backup',str(back),'-Status',str(status)]
+        powershell = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32' / 'WindowsPowerShell' / 'v1.0' / 'powershell.exe'
+        return [str(powershell),'-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',str(script),
+                '-OldPid',str(pid),'-Source',str(src),'-Target',str(target),'-Backup',str(back),'-Status',str(status),
+                '-Version',tag.removeprefix('v'),'-Port',str(port)]
     script=directory/('apply_update_'+secrets.token_hex(4)+'.sh')
     script.write_text("""#!/bin/sh
-OLDPID="$1"; SOURCE="$2"; TARGET="$3"; BACKUP="$4"; STATUS="$5"
+OLDPID="$1"; SOURCE="$2"; TARGET="$3"; BACKUP="$4"; STATUS="$5"; VERSION="$6"; PORT="$7"
 status(){ printf '%s\\n' "$1" > "$STATUS" 2>/dev/null || true; }
 status '앱 종료 대기 중'
 i=0
@@ -237,14 +263,43 @@ if ! mv "$SOURCE" "$TARGET"; then
   status '업데이트 실패: 새 앱 설치에 실패하여 이전 버전 복구를 시도했습니다.'
   exit 1
 fi
-if ! open "$TARGET"; then
+if ! /usr/bin/open "$TARGET"; then
   status '업데이트 실패: 새 앱 파일은 설치했지만 실행하지 못했습니다.'
   exit 3
 fi
-status '업데이트 완료: 새 재고노트가 실행되었습니다.'
+deadline=$(($(date +%s)+45))
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  reply=$(/usr/bin/curl --silent --fail --max-time 1 --noproxy 127.0.0.1 "http://127.0.0.1:$PORT/api/app/version")
+  if [ "$reply" = "{\"version\": \"$VERSION\"}" ]; then
+    status '업데이트 완료: 새 재고노트가 실행되었습니다.'
+    exit 0
+  fi
+  sleep 1
+done
+status '새 앱을 설치했습니다. 실행 확인이 지연되고 있으니 재고노트 화면을 다시 열어 주세요.'
+exit 3
 """,encoding='utf-8')
     os.chmod(script,0o700)
-    return ['/bin/sh',str(script),str(pid),str(src),str(target),str(back),str(status)]
+    return ['/bin/sh',str(script),str(pid),str(src),str(target),str(back),str(status),tag.removeprefix('v'),str(port)]
+
+def launch_installer(command, system):
+    options = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                   creationflags=0x00000008 if system=='Windows' else 0,
+                   start_new_session=system!='Windows')
+    if system != 'Windows' or not getattr(sys,'frozen',False):
+        return subprocess.Popen(command, **options)
+
+    # A system PowerShell process must not inherit the bundled DLL search directory.
+    import ctypes
+    set_dll_directory = ctypes.windll.kernel32.SetDllDirectoryW
+    set_dll_directory.argtypes = [ctypes.c_wchar_p]
+    if not set_dll_directory(None):
+        raise ctypes.WinError()
+    try:
+        options['cwd'] = str(Path(command[command.index('-File') + 1]).parent)
+        return subprocess.Popen(command, **options)
+    finally:
+        set_dll_directory(sys._MEIPASS)
 
 def install(tag,backup_token):
     with LOCK:
@@ -264,8 +319,11 @@ def install(tag,backup_token):
         actual=download(asset['browser_download_url'],archive)
         if actual!=expected:raise RuntimeError('SHA-256 검증 실패: 설치하지 않았습니다.')
         source=unpack(archive,work/'stage',system)
-        cmd=helper(source,target,os.getpid(),system)
+        cmd=helper(source,target,os.getpid(),system,tag)
         update_status('업데이트 다운로드 및 검증 완료 · 프로그램 종료 준비 중')
-        subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
-                         creationflags=0x00000008 if system=='Windows' else 0,start_new_session=system!='Windows')
+        try:
+            launch_installer(cmd,system)
+        except OSError as error:
+            update_status('업데이트 설치를 시작하지 못했습니다. GitHub에서 설치 파일을 내려받아 설치해 주세요.')
+            raise RuntimeError(last_update_status()) from error
         return {'scheduled':True,'message':tag+' 다운로드·SHA-256 검증 완료. 앱을 종료하고 설치 후 다시 실행합니다.'}

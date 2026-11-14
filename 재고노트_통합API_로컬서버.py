@@ -31,7 +31,7 @@ HTML = BASE / '재고노트_v7_범용재고관리.html'
 CONFIG = BASE / '재고노트_API설정.txt'
 KST = timezone(timedelta(hours=9))
 API = 'https://api.commerce.naver.com/external'
-PORT = 8765
+PORT = stocknote_update.APP_PORT
 session = requests.Session()
 token_cache = {'token': None, 'expires': 0}
 
@@ -539,6 +539,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.wfile.write(body)
         if path.path.startswith('/api/') and not local_request_allowed(self):
             return self.respond(403, {'error': '로컬 재고노트 페이지에서만 접근할 수 있습니다.'})
+        if path.path == '/api/app/version':
+            return self.respond(200, {'version': stocknote_update.VERSION})
         if path.path == '/api/update/check':
             try:
                 return self.respond(200, stocknote_update.check())
@@ -657,7 +659,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    print('\n재고노트 v7.2 · 로컬 서버')
+    print(f'\n재고노트 v{stocknote_update.VERSION} · 로컬 서버')
     print(f'브라우저 주소: http://127.0.0.1:{PORT}/')
     print('이 서버는 이 PC에서만 열립니다. 종료하려면 Ctrl+C를 누르세요.\n')
     try:

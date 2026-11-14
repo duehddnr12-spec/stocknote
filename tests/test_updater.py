@@ -3,10 +3,12 @@ import io
 import json
 import os
 import platform
+import socket
 import tempfile
 import subprocess
 import shutil
 import sys
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -73,14 +75,15 @@ class UpdateSafetyTests(unittest.TestCase):
             target=Path(folder)/'app'/'StockNote.exe'
             src.parent.mkdir()
             target.parent.mkdir()
-            cmd=u.helper(src,target,99999999,'Windows')
-            self.assertEqual(cmd[0],'powershell.exe')
+            cmd=u.helper(src,target,99999999,'Windows','v'+u.VERSION)
+            self.assertTrue(cmd[0].endswith('powershell.exe'))
             self.assertIn('-Status',cmd)
             script=Path(cmd[cmd.index('-File')+1]).read_text(encoding='utf-8-sig')
             self.assertIn('Start-Sleep -Milliseconds 750',script)
             self.assertIn('기존 실행파일이 다른 프로세스',script)
             self.assertIn('업데이트 완료:',script)
             self.assertIn('$newInstalled=$true',script)
+            self.assertIn("$env:PYINSTALLER_RESET_ENVIRONMENT='1'",script)
             if platform.system()=='Windows':
                 parser_command=(
                     "$tokens=$null; $errors=$null; "
@@ -99,9 +102,90 @@ class UpdateSafetyTests(unittest.TestCase):
                 self.assertEqual(target.read_bytes(),b'old executable')
                 self.assertIn('업데이트 실패',u.last_update_status())
             else:
-                mac=u.helper(Path(folder)/'new.app',Path(folder)/'old.app',99999999,'Darwin')
+                mac=u.helper(Path(folder)/'new.app',Path(folder)/'old.app',99999999,'Darwin','v'+u.VERSION)
                 self.assertEqual(mac[0],'/bin/sh')
                 subprocess.run(['/bin/sh','-n',mac[1]],check=True,timeout=15)
+
+    @unittest.skipUnless(platform.system()=='Windows','Requires the Windows PyInstaller bootloader')
+    def test_frozen_windows_update_restarts_same_path(self):
+        # A valid one-file executable exercises the restart path missed by the rollback test.
+        with tempfile.TemporaryDirectory(prefix='stocknote upgrade ') as folder:
+            root=Path(folder)
+            app_dir=root/'재고 앱'
+            app_dir.mkdir()
+            state_dir=root/'state'
+            with socket.socket() as listener:
+                listener.bind(('127.0.0.1',0))
+                port=listener.getsockname()[1]
+            source=root/'probe.py'
+            source.write_text(f'''import json, os, sys, threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+import stocknote_update as updater
+
+state = Path({str(state_dir)!r})
+state.mkdir(exist_ok=True)
+updater.app_data = lambda: state
+port = {port}
+if not (state/'first-launch').exists():
+    (state/'first-launch').touch()
+    command = updater.helper(Path({str(root/'incoming'/'StockNote.exe')!r}), Path(sys.executable), os.getpid(), 'Windows', 'v'+updater.VERSION, port)
+    updater.launch_installer(command, 'Windows')
+    sys.exit(0)
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path != '/api/app/version':
+            self.send_error(404)
+            return
+        body = json.dumps({{'version': updater.VERSION}}).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+        timer = threading.Timer(2, self.server.shutdown)
+        timer.daemon = True
+        timer.start()
+
+with ThreadingHTTPServer(('127.0.0.1',port),Handler) as server:
+    timer = threading.Timer(60,server.shutdown)
+    timer.daemon = True
+    timer.start()
+    server.serve_forever()
+''',encoding='utf-8')
+            repo=Path(u.__file__).resolve().parent
+            subprocess.run([sys.executable,'-m','PyInstaller','--onefile','--windowed','--noconfirm',
+                            '--name','StockNote','--paths',str(repo),'--distpath',str(root/'incoming'),
+                            '--workpath',str(root/'build'),'--specpath',str(root),str(source)],
+                           cwd=root,check=True,timeout=150,capture_output=True)
+            target=app_dir/'StockNote.exe'
+            shutil.copy2(root/'incoming'/'StockNote.exe',target)
+            subprocess.run([str(target)],cwd=app_dir,check=True,timeout=30,capture_output=True)
+            status_file=state_dir/'update_status.txt'
+            deadline=time.monotonic()+65
+            last=''
+            while time.monotonic()<deadline:
+                if status_file.exists():
+                    try:
+                        last=status_file.read_text(encoding='utf-8-sig')
+                    except (OSError,UnicodeError):
+                        last=''
+                    if last.startswith(('업데이트 완료:','업데이트 실패:')):
+                        break
+                time.sleep(.25)
+            self.assertTrue(last.startswith('업데이트 완료:'),last)
+            self.assertTrue(target.is_file())
+            self.assertEqual(len(list(app_dir.glob('StockNote.exe.previous-*'))),1)
+            # The test app exits after answering the health check, then releases its EXE lock.
+            deadline=time.monotonic()+12
+            while time.monotonic()<deadline:
+                try:
+                    target.unlink()
+                    break
+                except PermissionError:
+                    time.sleep(.25)
+            self.assertFalse(target.exists(),'The restarted test executable did not exit')
 
     def test_untrusted_download_rejected(self):
         for url in ['http://github.com/'+u.REPO+'/releases/download/v7.5/a.zip',
