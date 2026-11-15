@@ -424,6 +424,11 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
 .settings-grid .channel-settings { grid-column: 1 / -1; }
 .channel-settings > summary { scroll-margin-top: 80px; }
 .settings-grid #updateStatus { margin-bottom: 0; }
+.mobile-connection { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; }
+.mobile-connection canvas { width: min(100%, 205px); height: auto; border: 1px solid var(--line); border-radius: 8px; image-rendering: pixelated; }
+.mobile-link { flex: 1 1 190px; min-width: 0; }
+.mobile-link input { display: block; width: 100%; height: 38px; padding: 5px 8px; border: 1px solid var(--control-border); border-radius: 7px; color: var(--ink); background: var(--surface); font-size: 12px; }
+.mobile-link .btn { margin-top: 7px; }
 .channel-note { margin: 12px 16px; font-size: 13px; color: var(--sub); }
 .channel-fields { min-width: 0; border: 0; padding: 0; margin: 0; }
 .connector { border: 1px solid var(--line); border-radius: 11px; margin: 12px 15px 15px; overflow: hidden; }
@@ -762,7 +767,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           </section>
           <section class="panel" aria-labelledby="updateHeading">
             <h2 class="panel-title" id="updateHeading">프로그램 업데이트</h2>
-            <p id="updateStatus" role="status">현재 버전 v7.5.7-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
+            <p id="updateStatus" role="status">현재 버전 v7.5.8-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
             <div class="bulk-actions">
               <button type="button" class="btn" id="updateCheckInline" disabled>새 버전 확인</button>
               <button type="button" class="btn primary" id="updateInstallBtn" disabled>백업 후 업데이트 설치</button>
@@ -770,6 +775,21 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
             </div>
             <p><a id="updateDownload" href="https://github.com/duehddnr12-spec/stocknote/releases/latest" target="_blank" rel="noopener noreferrer">설치 파일 다운로드</a></p>
             <p class="connector-help" id="updateLastStatus" role="status"></p>
+          </section>
+          <section class="panel" aria-labelledby="mobileHeading">
+            <h2 class="panel-title" id="mobileHeading">휴대폰 재고 조회</h2>
+            <p>PC와 휴대폰을 같은 Wi-Fi에 연결하고 QR을 스캔하세요. 휴대폰에서 품번과 옵션별 재고를 조회할 수 있어요.</p>
+            <button type="button" class="btn primary" id="mobileToggle" disabled>휴대폰 조회 켜기</button>
+            <p id="mobileStatus" role="status">휴대폰 조회가 꺼져 있어요.</p>
+            <div class="mobile-connection" id="mobileConnection" hidden>
+              <canvas id="mobileQr" role="img" aria-label="휴대폰 재고 조회 연결 QR"></canvas>
+              <div class="mobile-link">
+                <label for="mobileUrl">휴대폰 연결 주소</label>
+                <input type="text" id="mobileUrl" spellcheck="false" readonly>
+                <button type="button" class="btn sm" id="mobileCopy">주소 복사</button>
+                <p>신뢰하는 Wi-Fi에서 사용하세요. 이 QR이나 주소를 가진 기기에서 재고를 볼 수 있어요.</p>
+              </div>
+            </div>
           </section>
           <details class="panel channel-settings" id="channelSettings">
             <summary>판매채널 연결 설정 <svg class="ico disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg></summary>
@@ -949,7 +969,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           const ar=clothingSizeRank(a),br=clothingSizeRank(b);
           if(ar!==br)return ar-br;
         }
-        return new Intl.Collator('ko',{numeric:true,sensitivity:'base'}).compare(normalizeSize(a),normalizeSize(b));
+        return sizeCollator.compare(normalizeSize(a),normalizeSize(b));
       };
       const orderVariantAlias=o=>'VARIANT|'+o.channel+'|'+variantKey(o.sku,o.option);
       const channels=['토스쇼핑','쿠팡','네이버 스마트스토어','KREAM','POIZON','옥션','G마켓','기타'];
@@ -1042,6 +1062,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           localStorage.setItem(KEY,snapshot);
         }
         storageOK=true;statusSaved();
+        scheduleMobileSync();
       }
       async function initializeInventoryDB(){
         try{
@@ -1515,6 +1536,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         $('orderActions').classList.toggle('hide', tab !== 'orders');
         if (tab === 'history') renderHistory();
         if (tab === 'orders') renderOrders();
+        if (tab === 'settings' && isLocalServer()) refreshMobileStatus();
       }
 
       function setStockFilter(filter) {
@@ -2424,6 +2446,142 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
       });
       if(isLocalServer())localKream('/api/poizon/status').then(d=>{if(d.configured)poizonMessage('POIZON API 키 설정됨. 연결 테스트를 진행해 주세요.');}).catch(()=>{});
 
+      const MOBILE_KEY = KEY + '-mobile-control';
+      let mobileFallbackKey = '', mobileEnabled = false, mobileBusy = false;
+      let mobileTimer, mobileQueue = Promise.resolve();
+
+      function mobileKey() {
+        try { return localStorage.getItem(MOBILE_KEY) || mobileFallbackKey; }
+        catch { return mobileFallbackKey; }
+      }
+
+      function rememberMobileKey(key) {
+        try {
+          if (key) localStorage.setItem(MOBILE_KEY, key);
+          else localStorage.removeItem(MOBILE_KEY);
+          mobileFallbackKey = '';
+        } catch { mobileFallbackKey = key; }
+      }
+
+      async function mobileApi(action, data) {
+        const response = await fetch('/api/mobile/' + action, {
+          method: data === undefined ? 'GET' : 'POST',
+          headers: data === undefined ? {'X-StockNote-Mobile-Key': mobileKey()} : {'Content-Type': 'application/json'},
+          body: data === undefined ? undefined : JSON.stringify(data),
+          cache: 'no-store', signal: AbortSignal.timeout(12000),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          const error = Error(result.error || '휴대폰 조회 연결을 확인해 주세요.');
+          error.status = response.status;
+          throw error;
+        }
+        return result;
+      }
+
+      function showMobileStatus(info) {
+        mobileEnabled = info.enabled;
+        $('mobileToggle').textContent = mobileEnabled ? '휴대폰 조회 끄기' : '휴대폰 조회 켜기';
+        $('mobileStatus').textContent = info.url ? '휴대폰 조회가 켜져 있어요. QR을 스캔하세요.'
+          : mobileEnabled ? '이 PC의 다른 브라우저에서 조회가 켜져 있어요.' : '휴대폰 조회가 꺼져 있어요.';
+        $('mobileConnection').hidden = !info.url;
+        $('mobileUrl').value = info.url || '';
+        if (!info.url) return;
+        const canvas = $('mobileQr');
+        const cell = 5;
+        canvas.width = canvas.height = info.qr.length * cell;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#000';
+        info.qr.forEach((row, y) => row.forEach((ink, x) => {
+          if (ink) context.fillRect(x * cell, y * cell, cell, cell);
+        }));
+      }
+
+      async function refreshMobileStatus() {
+        if (mobileBusy) return;
+        const key = mobileKey();
+        try {
+          const info = await mobileApi('status');
+          if (mobileBusy || mobileKey() !== key) return;
+          if (!info.url && key) rememberMobileKey('');
+          showMobileStatus(info);
+        } catch {
+          if (!mobileBusy) $('mobileStatus').textContent = '휴대폰 조회 상태를 확인할 수 없어요. 재고노트가 실행 중인지 확인해 주세요.';
+        }
+      }
+
+      async function mobileSnapshot() {
+        await inventoryReady;
+        await writeQueue.catch(() => {});
+        const revision = performance.timeOrigin + performance.now();
+        const raw = dbReady ? await idbRead() : localStorage.getItem(KEY);
+        const saved = raw ? JSON.parse(raw) : state;
+        const inventory = sanitize({products: saved.products, orders: saved.orders, aliases: saved.aliases});
+        const products = activeProducts(inventory);
+        const pending = pendingStockByProduct(inventory);
+        products.sort((a, b) => compareSku(a.sku, b.sku) || compareSize(a.option, b.option, a.category));
+        const rows = products.map(p => [p.sku, p.name, p.option, p.stock, Math.max(0, p.stock - (pending.get(p.id) || 0)), p.unit]);
+        return {revision, rows};
+      }
+
+      function scheduleMobileSync(delay = 180, retries = 2) {
+        if (!isLocalServer()) return;
+        const key = mobileKey();
+        if (!key) return;
+        clearTimeout(mobileTimer);
+        mobileTimer = setTimeout(() => {
+          mobileQueue = mobileQueue.then(async () => {
+            if (mobileKey() !== key) return;
+            try {
+              await mobileApi('snapshot', {key, ...await mobileSnapshot()});
+              if (mobileKey() === key && $('mobileUrl').value) $('mobileStatus').textContent = '휴대폰에서 볼 최신 재고를 보냈어요.';
+            } catch (error) {
+              if (mobileKey() !== key) return;
+              if (error.status === 409) {
+                rememberMobileKey('');
+                refreshMobileStatus();
+              } else if (retries > 0) {
+                scheduleMobileSync(1500, retries - 1);
+              } else {
+                $('mobileStatus').textContent = '휴대폰에 최신 재고를 보내지 못했어요. 조회를 껐다가 다시 켜 주세요.';
+              }
+            }
+          });
+        }, delay);
+      }
+
+      $('mobileToggle').addEventListener('click', async () => {
+        if (mobileBusy || !isLocalServer()) return;
+        mobileBusy = true;
+        $('mobileToggle').disabled = true;
+        try {
+          const info = mobileEnabled ? await mobileApi('stop', {}) : await mobileApi('start', await mobileSnapshot());
+          rememberMobileKey(info.key || '');
+          showMobileStatus(info);
+          if (info.key) scheduleMobileSync();
+        } catch (error) {
+          $('mobileStatus').textContent = error.message || '재고노트에 다시 연결해 주세요.';
+          notify($('mobileStatus').textContent, true);
+          mobileBusy = false;
+          await refreshMobileStatus();
+        } finally {
+          mobileBusy = false;
+          $('mobileToggle').disabled = false;
+        }
+      });
+
+      $('mobileCopy').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText($('mobileUrl').value);
+          notify('휴대폰 연결 주소를 복사했어요.');
+        } catch {
+          $('mobileUrl').select();
+          notify('선택된 연결 주소를 복사해 주세요.');
+        }
+      });
+
       // Update requests originate only from the local StockNote UI.
       const updateState={release:null,installing:false};
       const updateStatus=$('updateStatus');
@@ -2515,9 +2673,15 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         $('channelFields').disabled = false;
         $('openChannelSettings').disabled = false;
         $('quitAppBtn').disabled = false;
+        $('mobileToggle').disabled = false;
+        window.addEventListener('storage', event => {
+          if (event.key === MOBILE_KEY && currentTab === 'settings') refreshMobileStatus();
+        });
+        if (mobileKey()) refreshMobileStatus().then(() => scheduleMobileSync());
         checkUpdate();
       } else {
         $('channelNote').textContent = '설치형 재고노트에서 API를 연결할 수 있어요.';
+        $('mobileStatus').textContent = '설치형 Windows·Mac 재고노트에서 휴대폰 조회를 켤 수 있어요.';
         updateMessage('설치형 재고노트에서 새 버전을 확인할 수 있어요.');
       }
     })();

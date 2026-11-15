@@ -16,14 +16,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, urlencode, quote_plus
 from threading import Lock, Timer
-import stocknote_update
 from email.utils import parsedate_to_datetime
 
 try:
     import bcrypt
     import requests
+    import stocknote_mobile
+    import stocknote_update
 except ImportError:
-    print('필요한 모듈이 없습니다. cmd에서 다음을 실행하세요: python -m pip install bcrypt requests')
+    print('필요한 모듈이 없습니다. 다음을 실행하세요: python -m pip install -r requirements-build.txt')
     raise SystemExit(1)
 
 BASE = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
@@ -32,6 +33,7 @@ CONFIG = BASE / '재고노트_API설정.txt'
 KST = timezone(timedelta(hours=9))
 API = 'https://api.commerce.naver.com/external'
 PORT = stocknote_update.APP_PORT
+MOBILE_VIEW = stocknote_mobile.MobileShare(BASE)
 session = requests.Session()
 token_cache = {'token': None, 'expires': 0}
 
@@ -541,6 +543,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(403, {'error': '로컬 재고노트 페이지에서만 접근할 수 있습니다.'})
         if path.path == '/api/app/version':
             return self.respond(200, {'version': stocknote_update.VERSION})
+        if path.path == '/api/mobile/status':
+            return self.respond(200, MOBILE_VIEW.status(self.headers.get('X-StockNote-Mobile-Key')))
         if path.path == '/api/update/check':
             try:
                 return self.respond(200, stocknote_update.check())
@@ -601,11 +605,25 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Content-Type','').split(';')[0].strip().lower() != 'application/json':
             return self.respond(415,{'error':'JSON 형식만 허용합니다.'})
         try:
+            path=urlparse(self.path).path
+            limit=16000
+            if path=='/api/update/backup':
+                limit=stocknote_update.MAX_BACKUP
+            elif path in ('/api/mobile/start', '/api/mobile/snapshot'):
+                limit=stocknote_mobile.MAX_SNAPSHOT_BYTES
             n=int(self.headers.get('Content-Length','0'))
-            if n < 0 or n > (stocknote_update.MAX_BACKUP if urlparse(self.path).path == '/api/update/backup' else 16000):raise ValueError('요청 데이터가 너무 큽니다.')
+            if n < 0 or n > limit:raise ValueError('요청 데이터가 너무 큽니다.')
             data=json.loads(self.rfile.read(n))
             if not isinstance(data,dict):raise ValueError('JSON 객체가 필요합니다.')
-            path=urlparse(self.path).path
+            if path=='/api/mobile/start':
+                return self.respond(200, MOBILE_VIEW.start(data))
+            if path=='/api/mobile/snapshot':
+                if not MOBILE_VIEW.publish(data):
+                    return self.respond(409, {'error':'휴대폰 조회 연결이 종료됐어요.'})
+                return self.respond(200, {'ok':True})
+            if path=='/api/mobile/stop':
+                MOBILE_VIEW.stop()
+                return self.respond(200, {'enabled':False})
             if path=='/api/app/quit':
                 exit_timer=Timer(0.8,lambda:os._exit(0))
                 exit_timer.daemon=True
@@ -661,7 +679,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     print(f'\n재고노트 v{stocknote_update.VERSION} · 로컬 서버')
     print(f'브라우저 주소: http://127.0.0.1:{PORT}/')
-    print('이 서버는 이 PC에서만 열립니다. 종료하려면 Ctrl+C를 누르세요.\n')
+    print('관리 화면은 이 PC에서만 열립니다. 종료하려면 Ctrl+C를 누르세요.\n')
     try:
         httpd = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
     except OSError:
@@ -680,3 +698,4 @@ if __name__ == '__main__':
         print('\n서버를 종료합니다.')
     finally:
         httpd.server_close()
+        MOBILE_VIEW.stop()
