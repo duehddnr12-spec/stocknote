@@ -4,6 +4,7 @@ build/
 dist/
 release/
 *.spec
+node_modules/
 *.db
 *.sqlite
 *backup*.json

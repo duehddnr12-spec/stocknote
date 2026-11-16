@@ -22,6 +22,7 @@ try:
     import bcrypt
     import requests
     import stocknote_mobile
+    import stocknote_ocr
     import stocknote_update
 except ImportError:
     print('필요한 모듈이 없습니다. 다음을 실행하세요: python -m pip install -r requirements-build.txt')
@@ -29,6 +30,7 @@ except ImportError:
 
 BASE = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 HTML = BASE / '재고노트_v7_범용재고관리.html'
+OCR_ASSETS = BASE / 'ocr-assets' if getattr(sys, 'frozen', False) else BASE / 'ocr' / 'build'
 CONFIG = BASE / '재고노트_API설정.txt'
 KST = timezone(timedelta(hours=9))
 API = 'https://api.commerce.naver.com/external'
@@ -539,6 +541,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             return self.wfile.write(body)
+        if path.path.startswith('/ocr/'):
+            if not local_request_allowed(self):
+                return self.respond(403, {'error': '설치된 재고노트에서 사진을 읽어 주세요.'})
+            name = path.path.removeprefix('/ocr/')
+            content_type = stocknote_ocr.CONTENT_TYPES.get(name)
+            asset = OCR_ASSETS / name
+            if not content_type or not asset.is_file():
+                return self.respond(404, {'error': '사진 인식 파일을 찾을 수 없습니다.'})
+            with asset.open('rb') as stream:
+                self.send_response(200)
+                self.send_header('Content-Type', content_type)
+                self.send_header('Content-Length', str(asset.stat().st_size))
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('X-Content-Type-Options', 'nosniff')
+                self.end_headers()
+                return self.wfile.write(stream.read())
         if path.path.startswith('/api/') and not local_request_allowed(self):
             return self.respond(403, {'error': '로컬 재고노트 페이지에서만 접근할 수 있습니다.'})
         if path.path == '/api/app/version':
