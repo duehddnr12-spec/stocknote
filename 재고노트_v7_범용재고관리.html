@@ -52,19 +52,19 @@ SOFTWARE.
   <style>
 :root {
   color-scheme: light;
-  --canvas: #f6f5fc;
+  --canvas: #f5f3fb;
   --paper: #fff;
   --surface: #f9f8fc;
-  --surface-hover: #faf9fd;
-  --ink: #232039;
+  --surface-hover: #f8f5ff;
+  --ink: #211935;
   --sub: #55506a;
   --faint: #675f7b;
   --line: #e7e3f0;
   --divider: #efecf5;
   --control-border: #ded9e9;
-  --primary: #6547d9;
-  --primary-hover: #563ac3;
-  --primary-deep: #4c2ea9;
+  --primary: #6344d3;
+  --primary-hover: #5232bc;
+  --primary-deep: #44289e;
   --primary-ink: #fff;
   --accent: #eee9ff;
   --accent-line: #dfd5ff;
@@ -75,15 +75,16 @@ SOFTWARE.
   --amber-bg: #fff1e1;
   --amber-line: #f1d6b8;
   --toast: #282044;
-  --rail-width: 222px;
-  --radius: 16px;
-  --shadow: 0 1px 2px #2a1b5008, 0 8px 24px #2a1b5008;
+  --rail-width: 216px;
+  --radius: 18px;
+  --shadow: 0 1px 2px #2a1b5008, 0 8px 26px #2a1b5009;
+  --ease-out: cubic-bezier(.2, .7, .25, 1);
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: var(--canvas);
+  background: radial-gradient(ellipse at 85% 0%, #ede7fd, transparent 47rem), var(--canvas);
   color: var(--ink);
   font: 14px/1.55 Inter, 'Noto Sans', 'Noto Sans CJK KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -115,7 +116,7 @@ button svg, summary svg { flex: none; }
 .positive { color: var(--primary); font-weight: 680; }
 
 .sidebar {
-  background: var(--paper);
+  background: linear-gradient(172deg, var(--paper) 35%, #f4efff);
   color: var(--ink);
   border-inline-end: 1px solid var(--line);
   position: fixed;
@@ -124,22 +125,24 @@ button svg, summary svg { flex: none; }
   width: var(--rail-width);
   display: flex;
   flex-direction: column;
-  padding: 30px 16px 18px;
+  padding: 22px 14px 18px;
   overflow-y: auto;
 }
-.brand { display: flex; align-items: center; gap: 11px; padding: 0 9px; }
+.brand { display: flex; align-items: center; gap: 11px; padding: 0 8px; }
 .brand strong { font-size: 21px; letter-spacing: -.07em; }
 .mark {
   display: grid;
+  flex: none;
   width: 41px;
   height: 41px;
   border-radius: 12px;
   place-items: center;
-  background: var(--primary);
+  background: linear-gradient(145deg, #7958e9, #512db7);
   color: var(--primary-ink);
+  box-shadow: 0 5px 12px #5c35bb40, inset 0 1px 0 #ffffff45;
 }
 .mark .ico { width: 24px; height: 24px; }
-.navigation { display: grid; gap: 5px; margin-top: 36px; }
+.navigation { display: grid; gap: 6px; margin-top: 31px; }
 .nav-button {
   display: flex;
   align-items: center;
@@ -148,7 +151,7 @@ button svg, summary svg { flex: none; }
   min-height: 46px;
   padding: 9px 12px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--sub);
   text-align: left;
@@ -157,7 +160,13 @@ button svg, summary svg { flex: none; }
   transition: background-color .15s, color .15s, border-color .15s;
 }
 .nav-button:hover { background: var(--surface); color: var(--ink); }
-.nav-button.active { border-color: var(--accent-line); background: var(--accent); color: var(--primary-deep); }
+.nav-button.active {
+  border-color: var(--accent-line);
+  background: linear-gradient(95deg, #eae2ff, #f4efff);
+  box-shadow: inset 3px 0 var(--primary);
+  color: var(--primary-deep);
+  font-weight: 750;
+}
 .nav-button.active .ico { color: var(--primary); }
 .nav-button .nav-count {
   margin-left: auto;
@@ -175,21 +184,43 @@ button svg, summary svg { flex: none; }
   top: 0;
   z-index: 8;
   border-bottom: 1px solid var(--line);
-  background: var(--paper);
+  background: #fcfbff;
 }
-.topinner, .content { max-width: 1600px; margin-inline: auto; padding-inline: clamp(22px, 2.4vw, 38px); }
-.topinner { min-height: 60px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.topinner, .content { max-width: 1660px; margin-inline: auto; padding-inline: clamp(20px, 2.35vw, 38px); }
+.topinner { min-height: 54px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .topmeta, .time, .save-status { display: flex; align-items: center; gap: 8px; color: var(--sub); font-size: 12px; }
 .time .ico { width: 15px; height: 15px; }
 .topmeta { gap: 14px; }
 .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
 .dot.warn { background: var(--amber); }
 
-.content { padding-block: 32px 44px; }
-.heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
-h1 { font-size: clamp(29px, 2.8vw, 39px); line-height: 1.22; letter-spacing: -.072em; font-weight: 760; }
-.heading p { color: var(--sub); font-size: 13px; margin-top: 8px; }
-.heading-actions, .bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.content { padding-block: 24px 44px; }
+.heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 20px clamp(16px, 2vw, 27px);
+  color: #fff;
+  background:
+    radial-gradient(circle at 100% -45px,
+      transparent 154px, #ffffff26 155px, transparent 156px 205px,
+      #ffffff22 206px, transparent 207px 254px,
+      #ffffff1e 255px, transparent 256px 301px,
+      #ffffff1a 302px, transparent 303px),
+    radial-gradient(ellipse at right top, #be9cff45, transparent 52%),
+    linear-gradient(110deg, #39227d, #6743c9 100%);
+  border: 1px solid #4f30a0;
+  border-radius: 21px;
+  box-shadow: 0 8px 20px #4b2b9028, inset 0 1px 0 #ffffff20;
+}
+h1 { font-size: clamp(28px, 2.85vw, 41px); line-height: 1.2; letter-spacing: -.065em; font-weight: 780; }
+.heading p { color: #f6efff; font-size: 13px; margin-top: 5px; }
+.heading-actions, .heading-buttons, .bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.product-actions { grid-column: 1 / -1; gap: 9px 14px; }
+.heading-search { flex: 1 1 260px; }
+.heading-buttons { flex: 0 1 auto; }
 .btn {
   min-height: 39px;
   display: inline-flex;
@@ -198,16 +229,17 @@ h1 { font-size: clamp(29px, 2.8vw, 39px); line-height: 1.22; letter-spacing: -.0
   gap: 7px;
   padding: 7px 12px;
   border: 1px solid var(--control-border);
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--paper);
   color: var(--ink);
   font-size: 13px;
   font-weight: 680;
   text-align: center;
   white-space: nowrap;
-  transition: background-color .15s, border-color .15s;
+  transition: background-color .15s, border-color .15s, box-shadow .15s, transform .15s var(--ease-out);
 }
 .btn:hover:not(:disabled) { background: var(--surface); border-color: var(--accent-line); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
 .btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn.danger { color: var(--red); border-color: var(--red-line); }
@@ -216,56 +248,62 @@ h1 { font-size: clamp(29px, 2.8vw, 39px); line-height: 1.22; letter-spacing: -.0
 .btn.sm { min-height: 31px; padding: 4px 9px; font-size: 12px; }
 .btn .ico { width: 16px; height: 16px; }
 .btn.sm .ico { width: 14px; height: 14px; }
+.heading .btn { min-height: 43px; border-color: #e8dfff70; color: #fff; background: #28125e54; }
+.heading .btn:hover:not(:disabled) { border-color: #fff; background: #28125e92; }
+.heading .btn.primary { border-color: #fff; color: var(--primary-deep); background: #fff; box-shadow: 0 3px 10px #28125e38; }
+.heading .btn.primary:hover:not(:disabled) { background: #f0e9ff; }
+.heading :focus-visible { outline-color: #fff; }
 
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 23px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .stat {
-  position: relative;
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
-  padding: 16px 17px 15px;
+  padding: 12px 16px 13px;
   box-shadow: var(--shadow);
 }
-.stat.lead { background: #f1edff; border-color: var(--accent-line); }
+.stat.lead { background: linear-gradient(125deg, #eee6ff, #faf7ff); border-color: #dcd0ff; }
 .stat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 690; color: var(--sub); }
-.stat-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: var(--primary); }
+.stat-icon { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--primary); }
 .stat.lead .stat-icon { background: var(--paper); color: var(--primary-deep); }
 .stat.alert .stat-icon { color: var(--amber); background: var(--amber-bg); }
 .stat.sold .stat-icon { color: var(--red); background: var(--red-bg); }
-.stat-value { font-size: 32px; font-weight: 760; letter-spacing: -.055em; line-height: 1.15; margin: 4px 0 5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat-value { font-size: 34px; font-weight: 780; letter-spacing: -.055em; line-height: 1.15; margin: 0 0 4px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .stat.lead .stat-value { color: var(--primary-deep); }
 .stat.alert .stat-value { color: var(--amber); }
 .stat.sold .stat-value { color: var(--red); }
 .stat-value small { font-size: 13px; color: var(--sub); font-weight: 620; letter-spacing: 0; }
 .stat-foot { color: var(--sub); font-size: 12px; }
 
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(244px, 282px); align-items: start; gap: 18px; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(244px, 19vw, 282px); align-items: start; gap: 16px; }
 .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .header-row, .panel-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-.panel-header { padding: 17px 17px 14px; }
-.panel-title, .side-head h2 { font-size: 16px; font-weight: 760; letter-spacing: -.04em; }
+.panel-header { padding: 16px 18px 12px; }
+.panel-title, .side-head h2 { font-size: 17px; font-weight: 760; letter-spacing: -.04em; }
 .panel-hint { color: var(--sub); font-size: 12px; margin-top: 4px; }
 .panel-title-line { display: flex; align-items: center; gap: 8px; }
-.filter-set { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.filter-set { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; padding: 3px; border-radius: 11px; background: #f3f0fa; }
 .filter-chip {
   display: inline-flex;
   gap: 5px;
   align-items: center;
   padding: 5px 9px;
-  min-height: 32px;
+  min-height: 29px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 8px;
   color: var(--sub);
   font-size: 12px;
   font-weight: 680;
   white-space: nowrap;
 }
 .filter-chip:hover { background: var(--surface); color: var(--ink); }
-.filter-chip[aria-pressed='true'] { background: var(--accent); color: var(--primary-deep); border-color: var(--accent-line); }
+.filter-chip[aria-pressed='true'] { background: var(--paper); color: var(--primary-deep); border-color: var(--accent-line); box-shadow: 0 1px 3px #2a1b5010; }
 .filter-chip span { font-variant-numeric: tabular-nums; font-size: 11px; }
 .filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 17px 14px; }
+.inventory-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 13px; }
+.inventory-controls .filters { padding: 0; }
 .searchbox { flex: 1; min-width: 155px; position: relative; }
 .searchbox .ico { position: absolute; left: 11px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
 .searchbox input, .input-select {
@@ -278,6 +316,21 @@ h1 { font-size: clamp(29px, 2.8vw, 39px); line-height: 1.22; letter-spacing: -.0
 }
 .searchbox input { display: block; width: 100%; padding: 7px 10px 7px 34px; background: var(--surface); }
 .searchbox input::placeholder { color: var(--faint); }
+.heading-search .ico { left: 13px; color: var(--primary); }
+.heading-search input { min-height: 43px; padding: 8px 79px 8px 38px; background: var(--paper); border-radius: 10px; }
+.heading-search kbd {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  transform: translateY(-50%);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--sub);
+  background: var(--surface);
+  font: 600 11px/1.45 ui-monospace, Consolas, monospace;
+  pointer-events: none;
+}
 .input-select { padding: 6px 9px; max-width: 160px; }
 .check-filter, .delete-toolbar label { display: inline-flex; align-items: center; gap: 5px; color: var(--sub); font-size: 12px; font-weight: 620; white-space: nowrap; }
 input[type='checkbox'] { width: 15px; height: 15px; accent-color: var(--primary); margin: 0; flex: none; }
@@ -287,8 +340,8 @@ input[type='checkbox'] { width: 15px; height: 15px; accent-color: var(--primary)
 
 .table-wrap { overflow-x: auto; max-width: 100%; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
-th { padding: 10px 11px; background: var(--surface); color: var(--sub); font-weight: 690; font-size: 12px; white-space: nowrap; border-block: 1px solid var(--line); }
-td { padding: 11px; border-bottom: 1px solid var(--divider); vertical-align: middle; font-variant-numeric: tabular-nums; font-size: 13px; }
+th { padding: 10px 11px; background: #f6f3fc; color: var(--sub); font-weight: 710; font-size: 12px; white-space: nowrap; border-block: 1px solid var(--line); }
+td { padding: 12px 11px; border-bottom: 1px solid var(--divider); vertical-align: middle; font-variant-numeric: tabular-nums; font-size: 13px; }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background: var(--surface-hover); }
 th:first-child, td:first-child { padding-left: 17px; }
@@ -296,30 +349,43 @@ th:last-child, td:last-child { padding-right: 17px; }
 .inventory-table { min-width: 620px; }
 .history-table { min-width: 755px; }
 .orders-table { min-width: 920px; }
-.sku-cell { font: 650 12px/1.4 'IBM Plex Mono', ui-monospace, Consolas, monospace; color: var(--sub); overflow-wrap: anywhere; }
-.group-toggle { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; text-align: left; padding: 5px 0; color: var(--primary); max-width: 100%; }
-.group-toggle .ico { width: 15px; height: 15px; transition: transform .15s; }
+.sku-cell { font: 650 12px/1.4 'IBM Plex Mono', ui-monospace, Consolas, monospace; color: inherit; overflow-wrap: anywhere; }
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 5px 7px 5px 4px;
+  border: 1px solid #e4dcfa;
+  border-radius: 8px;
+  background: #f7f3ff;
+  color: var(--primary-deep);
+  text-align: left;
+  transition: background-color .15s, border-color .15s;
+}
+.group-toggle:hover, .group-toggle[aria-expanded='true'] { background: var(--accent); border-color: var(--accent-line); }
+.group-toggle .ico { width: 14px; height: 14px; transition: transform .18s var(--ease-out); }
 .group-toggle[aria-expanded='true'] .ico { transform: rotate(90deg); }
-.prod-main { font-size: 13px; font-weight: 730; overflow-wrap: anywhere; }
+.prod-main { font-size: 14px; font-weight: 740; overflow-wrap: anywhere; }
 .prod-sub, .group-count { color: var(--faint); font-size: 11px; margin-top: 2px; }
-.group-total { font-size: 16px; font-weight: 760; letter-spacing: -.03em; white-space: nowrap; }
+.group-total { font-size: 17px; font-weight: 760; letter-spacing: -.03em; white-space: nowrap; }
 .group-total small { font-size: 11px; color: var(--sub); font-weight: 590; }
 .group-available { color: var(--primary-deep); font-size: 11px; font-weight: 680; }
 .group-status { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .option-count { font-size: 13px; font-weight: 660; white-space: nowrap; }
 .option-count span { color: var(--faint); font-weight: 530; }
 .select-cell { width: 46px; text-align: center; }
-.badge, .stock-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 6px; background: #f2f0f6; color: var(--sub); font-size: 11px; font-weight: 720; white-space: nowrap; }
+.badge, .stock-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; background: #f2f0f6; color: var(--sub); font-size: 11px; font-weight: 720; white-space: nowrap; }
 .badge.low, .stock-tag.sold { color: var(--red); background: var(--red-bg); }
-.badge.ok, .pill-open { background: var(--accent); color: var(--primary-deep); }
+.badge.ok, .stock-tag.ok, .pill-open { background: var(--accent); color: var(--primary-deep); }
 .pill-issue, .stock-tag.warning { background: var(--amber-bg); color: var(--amber); }
 .stock-tag::before { content: ''; width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
-.group-expanded td, .group-expanded:hover td { padding: 0; background: var(--surface); }
-.size-panel { padding: 12px 16px 15px; border-inline-start: 3px solid var(--accent-line); }
+.group-expanded td, .group-expanded:hover td { padding: 0; background: #f6f2ff; }
+.size-panel { padding: 13px 16px 16px; border-inline-start: 3px solid #baa7f7; }
 .size-panel-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .size-panel-hint, .size-none { font-size: 12px; color: var(--sub); }
 .size-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 8px; }
-.size-card { background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 10px; overflow-wrap: anywhere; }
+.size-card { background: var(--paper); border: 1px solid var(--line); border-radius: 11px; padding: 11px; overflow-wrap: anywhere; }
 .size-card.low { border-color: var(--amber-line); }
 .size-card.sold { border-color: var(--red-line); }
 .size-number { font-size: 15px; font-weight: 760; }
@@ -346,12 +412,12 @@ th:last-child, td:last-child { padding-right: 17px; }
 .empty p { margin: 5px 0 14px; }
 
 .aside { display: grid; gap: 15px; }
-.side-head { padding: 15px 15px 8px; }
-.side-head h2 { display: flex; align-items: center; gap: 7px; }
-.side-head h2 > .ico { color: var(--primary); width: 16px; height: 16px; }
-#stockWatchHeading > .ico { color: var(--amber); }
-.side-head p { color: var(--sub); font-size: 12px; margin-top: 2px; }
-.side-content { padding: 0 15px 6px; }
+.side-head { padding: 14px 15px 9px; }
+.side-head h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.side-head h2 > .ico { width: 29px; height: 29px; padding: 6px; border-radius: 9px; background: var(--accent); color: var(--primary); }
+#stockWatchHeading > .ico, #sideLowCount { background: var(--amber-bg); color: var(--amber); }
+.side-head p { color: var(--sub); font-size: 12px; margin-top: 4px; }
+.side-content { padding: 0 15px 7px; }
 .side-foot { padding: 5px 9px 9px; border-top: 1px solid var(--line); }
 .low-item, .recent-item {
   display: flex;
@@ -417,7 +483,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
 .pill-cancel { background: #f2f0f6; color: var(--sub); }
 
 .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
-.settings-grid > .panel { padding: 18px; }
+.settings-grid > .panel { padding: 19px; }
 .settings-grid p { margin: 7px 0 14px; color: var(--sub); font-size: 13px; }
 .settings-grid .bulk-actions { margin-top: 12px; }
 .settings-grid .connector-help:empty { display: none; }
@@ -447,13 +513,13 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
 .connector-result.error { background: var(--red-bg); color: var(--red); }
 .connector-status { background: var(--paper); border: 1px solid var(--line); border-radius: 7px; padding: 3px 7px; color: var(--sub); font-size: 11px; font-weight: 700; }
 
-.backdrop { display: none; position: fixed; inset: 0; z-index: 20; align-items: center; justify-content: center; padding: 16px; overflow: auto; background: #21183499; }
+.backdrop { display: none; position: fixed; inset: 0; z-index: 20; align-items: center; justify-content: center; padding: 16px; overflow: auto; background: #21183480; }
 .backdrop.open { display: flex; }
-.modal { width: 100%; max-width: 560px; max-height: calc(100dvh - 32px); overflow: auto; border-radius: 17px; background: var(--paper); box-shadow: 0 20px 70px #21183444; }
+.modal { width: 100%; max-width: 560px; max-height: calc(100dvh - 32px); overflow: auto; border-radius: 20px; background: var(--paper); box-shadow: 0 20px 70px #21183444; }
 .modal.sm { max-width: 470px; }
 .modal.bulk-dialog { max-width: 875px; }
 .modal-top, .modal-body, .modal-foot { padding: 17px 20px; }
-.modal-top { display: flex; justify-content: space-between; align-items: start; gap: 10px; border-bottom: 1px solid var(--line); }
+.modal-top { display: flex; justify-content: space-between; align-items: start; gap: 10px; border-bottom: 1px solid var(--line); background: linear-gradient(105deg, #f4efff, var(--paper)); }
 .modal-top h2 { font-size: 22px; font-weight: 760; letter-spacing: -.055em; }
 .modal-top p { color: var(--sub); font-size: 13px; margin-top: 3px; }
 .close { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border: 1px solid var(--line); border-radius: 8px; color: var(--sub); background: var(--surface); font-size: 22px; line-height: 1; }
@@ -504,21 +570,42 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
 .bulk-review { max-height: 250px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
 .bulk-review thead { position: sticky; top: 0; }
 .bulk-notice { margin-top: 8px; }
-.photo-source { margin-top: 12px; }
+.photo-upload { margin-top: 0; padding: 15px; border-color: #cbbbf5; border-radius: 13px; background: #f8f4ff; }
+.photo-upload > div { flex: 1 1 245px; }
+#photoStatus:empty { margin-top: 0; }
+.photo-source { margin-top: 12px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; }
 .photo-source summary { color: var(--primary-deep); font-size: 13px; font-weight: 680; }
 .photo-source img { display: block; width: 100%; max-height: 275px; object-fit: contain; margin-top: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .photo-source pre { max-height: 125px; overflow: auto; padding: 8px; background: var(--surface); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
-.photo-controls { margin: 13px 0 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.photo-controls { margin: 14px 0 7px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+#photoTableWrap { border: 1px solid var(--line); border-radius: 10px; }
 .photo-table { min-width: 700px; }
 .photo-table td { padding: 7px; }
 .photo-table input { width: 100%; min-width: 88px; padding: 5px 6px; border: 1px solid var(--control-border); background: var(--paper); border-radius: 6px; }
 .photo-table input[data-photo-field='name'] { min-width: 134px; }
 .photo-table [data-photo-field='qty'] { min-width: 70px; }
 .photo-table .photo-result { min-width: 134px; }
-#photoProgress { width: 100%; margin-top: 8px; accent-color: var(--primary); }
+#photoProgress { display: block; width: 100%; height: 13px; margin-top: 8px; accent-color: var(--primary); }
+#photoProgress[value] { appearance: none; overflow: hidden; border: 0; border-radius: 999px; background: var(--accent); }
+#photoProgress[value]::-webkit-progress-bar { background: var(--accent); }
+#photoProgress[value]::-webkit-progress-value { background: linear-gradient(90deg, var(--primary), #9067ef); border-radius: 999px; }
+#photoProgress[value]::-moz-progress-bar { background: linear-gradient(90deg, var(--primary), #9067ef); border-radius: 999px; }
 .toast { display: none; position: fixed; right: 17px; bottom: 17px; z-index: 25; padding: 11px 14px; max-width: min(450px, calc(100vw - 34px)); background: var(--toast); color: var(--primary-ink); border-radius: 9px; box-shadow: 0 8px 28px #21183433; font-size: 13px; font-weight: 620; }
 .toast.show { display: block; }
 .toast.error { background: var(--red); }
+
+.screen:not(.hide), .backdrop.open .modal, .toast.show, #photoReview:not([hidden]), .size-panel.revealing {
+  animation: enter .22s var(--ease-out);
+}
+.stock-changed > td { animation: stock-highlight 1.5s var(--ease-out); }
+@keyframes enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes stock-highlight {
+  0%, 35% { background-color: #e9deff; }
+  100% { background-color: transparent; }
+}
 
 @media (max-width: 1210px) {
   :root { --rail-width: 182px; }
@@ -534,20 +621,22 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
   .mark .ico { width: 20px; height: 20px; }
   .navigation { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 0; }
   .nav-button { width: auto; min-height: 37px; gap: 6px; padding: 5px 8px; font-size: 12px; }
+  .nav-button.active { box-shadow: none; }
   .nav-button .ico { width: 15px; height: 15px; }
   .nav-button .nav-count { display: none; }
   .workspace { margin-left: 0; }
   .topbar { position: static; }
   .topinner { min-height: 43px; }
   .content { padding-top: 20px; }
+  .heading { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .stats { gap: 8px; }
   .stat { padding: 11px; }
 }
 
 @media (max-width: 690px) {
   .topinner, .content { padding-inline: 12px; }
-  .heading { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
-  .heading p { margin-top: 5px; }
+  .heading { margin-bottom: 13px; border-radius: 16px; }
+  .heading-search { flex-basis: 100%; }
   .stats, .aside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats { margin-bottom: 14px; }
   .stat-head { font-size: 12px; }
@@ -560,10 +649,16 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
   .filters { padding-inline: 11px; }
   .filters > .searchbox { flex-basis: 100%; }
   .panel-header { padding-inline: 11px; }
+  .inventory-controls { display: contents; }
+  .inventory-controls .filters { flex-basis: 100%; }
   .inventory-table, .inventory-table tbody { display: block; min-width: 0; }
   .inventory-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .inventory-table .group-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 3px 7px; padding: 10px 11px; border-top: 1px solid var(--line); }
   .inventory-table .group-row > td { border: 0; padding: 0; }
+  .inventory-table .group-row:hover { background: var(--surface-hover); }
+  .inventory-table .group-row:hover > td { background: transparent; }
+  .inventory-table .stock-changed { animation: stock-highlight 1.5s var(--ease-out); }
+  .inventory-table .stock-changed > td { animation: none; }
   .group-row .sku-column { grid-area: 1 / 1 / 2 / 3; }
   .group-row .name-column { grid-area: 2 / 1 / 3 / 2; }
   .group-row .option-column { grid-area: 3 / 1 / 4 / 2; }
@@ -601,12 +696,17 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
   .topmeta { flex: 1 0 auto; justify-content: flex-end; }
   .topmeta .save-status { max-width: 110px; text-align: right; }
   .filter-chip { padding-inline: 6px; }
+  .heading-buttons { gap: 6px; }
+  .heading .btn { padding-inline: 8px; gap: 5px; font-size: 12px; }
+  .heading-search input { padding-right: 10px; font-size: 16px; }
+  .heading-search kbd { display: none; }
   .modal-top, .modal-body, .modal-foot { padding-inline: 12px; }
   .formgrid, .bulk-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+  .btn:active:not(:disabled) { transform: none; }
 }
 
   </style>
@@ -636,10 +736,13 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
     <main class="content" aria-labelledby="screenTitle">
       <header class="heading">
         <div><h1 id="screenTitle">재고 현황</h1><p id="screenHint">판매 가능 수량은 연결된 발송준비 주문을 반영해 계산해요.</p></div>
-        <div class="heading-actions" id="productActions">
-          <button class="btn" id="photoBtn" type="button" disabled>사진 입고</button>
-          <button class="btn" id="bulkBtn" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>엑셀 일괄 등록</button>
-          <button class="btn primary" id="addBtn" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>상품 등록</button>
+        <div class="heading-actions product-actions" id="productActions">
+          <label class="searchbox heading-search"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg><span class="sr-only">상품 검색</span><input type="search" id="searchInput" placeholder="품번 · 상품명 · 사이즈 검색" aria-keyshortcuts="Control+K Meta+K" /><kbd aria-hidden="true">Ctrl K</kbd></label>
+          <div class="heading-buttons">
+            <button class="btn primary" id="photoBtn" type="button" disabled>사진 입고</button>
+            <button class="btn" id="addBtn" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>상품 등록</button>
+            <button class="btn" id="bulkBtn" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>엑셀 일괄 등록</button>
+          </div>
         </div>
         <div class="heading-actions hide" id="orderActions">
           <button class="btn" id="openChannelSettings" type="button" disabled>판매채널 연결</button>
@@ -648,7 +751,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         </div>
       </header>
 
-      <section id="productsView" aria-labelledby="productsTab">
+      <section id="productsView" class="screen" aria-labelledby="productsTab">
         <div class="stats" aria-label="재고 요약">
           <div class="stat lead"><div class="stat-head">등록 상품<span class="stat-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg></span></div><div class="stat-value" id="statProducts">0</div><p class="stat-foot">고유 품번 기준</p></div>
           <div class="stat"><div class="stat-head">보유 옵션<span class="stat-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></span></div><div class="stat-value" id="statStock">0</div><p class="stat-foot">재고가 있는 옵션</p></div>
@@ -660,17 +763,18 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           <section class="panel" aria-labelledby="inventoryHeading">
             <header class="panel-header">
               <h2 class="panel-title" id="inventoryHeading">상품 목록</h2>
-              <div class="filter-set" role="group" aria-label="재고 상태">
-                <button type="button" class="filter-chip" data-stock-filter="all" aria-pressed="true">전체</button>
-                <button type="button" class="filter-chip" data-stock-filter="low" aria-pressed="false">재고 부족</button>
-                <button type="button" class="filter-chip" data-stock-filter="sold" aria-pressed="false">품절</button>
+              <div class="inventory-controls">
+                <div class="filter-set" role="group" aria-label="재고 상태">
+                  <button type="button" class="filter-chip" data-stock-filter="all" aria-pressed="true">전체</button>
+                  <button type="button" class="filter-chip" data-stock-filter="low" aria-pressed="false">재고 부족</button>
+                  <button type="button" class="filter-chip" data-stock-filter="sold" aria-pressed="false">품절</button>
+                </div>
+                <div class="filters">
+                  <select id="categoryFilter" class="input-select" aria-label="상품 종류"><option value="">전체 종류</option></select>
+                  <label class="check-filter" id="zeroOptionLabel"><input type="checkbox" id="showZeroSizes" /> 품절 옵션 표시</label>
+                </div>
               </div>
             </header>
-            <div class="filters">
-              <label class="searchbox"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg><span class="sr-only">상품 검색</span><input type="search" id="searchInput" placeholder="상품명, 품번, 옵션 검색" /></label>
-              <select id="categoryFilter" class="input-select" aria-label="상품 종류"><option value="">전체 종류</option></select>
-              <label class="check-filter" id="zeroOptionLabel"><input type="checkbox" id="showZeroSizes" /> 품절 옵션 표시</label>
-            </div>
             <div id="productTableWrap" class="table-wrap">
               <table class="inventory-table">
                 <thead><tr><th scope="col" title="영문 A→Z, 혼합 품번은 영문 먼저 · 숫자는 큰 수부터, 숫자 전용 품번은 마지막">품번 (SKU)</th><th scope="col">상품명</th><th scope="col">보유 옵션</th><th scope="col">총 재고</th><th scope="col">상태</th><th scope="col">관리</th><th scope="col" class="select-cell"><span class="sr-only">상품 선택</span><input type="checkbox" id="selectPage" aria-label="현재 페이지 상품 모두 선택" /></th></tr></thead>
@@ -712,7 +816,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         </div>
       </section>
 
-      <section id="ordersView" class="hide" aria-labelledby="ordersTab">
+      <section id="ordersView" class="screen hide" aria-labelledby="ordersTab">
         <details id="orderImport" class="panel order-import">
           <summary><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>주문 파일 가져오기 <svg class="ico disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg></summary>
           <div class="order-tools">
@@ -759,14 +863,14 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         </section>
       </section>
 
-      <section id="historyView" aria-labelledby="historyTab" class="panel hide">
+      <section id="historyView" aria-labelledby="historyTab" class="screen panel hide">
           <div class="history-tools"><p>수동 입출고, 초기 등록, 재고 조정은 기록에서 취소할 수 있어요.</p><button class="btn sm" id="exportHistoryBtn" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>기록 CSV</button></div>
           <div class="table-wrap" id="historyTableWrap"><table class="history-table"><thead><tr><th>날짜</th><th>상품</th><th>구분</th><th>변경</th><th>변경 후 재고</th><th>메모</th><th>처리</th></tr></thead><tbody id="historyRows"></tbody></table></div>
           <div id="historyEmpty" class="history-empty hide">아직 입출고 내역이 없습니다.</div>
           <div class="resultbar"><span id="historyCount">총 0건</span><span>기록은 전체 백업에 포함됩니다.</span></div>
         </section>
 
-      <section id="settingsView" class="hide" aria-labelledby="settingsTab">
+      <section id="settingsView" class="screen hide" aria-labelledby="settingsTab">
         <div class="settings-grid">
           <section class="panel" aria-labelledby="dataHeading">
             <h2 class="panel-title panel-title-line" id="dataHeading"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>백업과 복원</h2>
@@ -780,7 +884,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           </section>
           <section class="panel" aria-labelledby="updateHeading">
             <h2 class="panel-title" id="updateHeading">프로그램 업데이트</h2>
-            <p id="updateStatus" role="status">현재 버전 v7.5.9-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
+            <p id="updateStatus" role="status">현재 버전 v7.5.10-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
             <div class="bulk-actions">
               <button type="button" class="btn" id="updateCheckInline" disabled>새 버전 확인</button>
               <button type="button" class="btn primary" id="updateInstallBtn" disabled>백업 후 업데이트 설치</button>
@@ -937,9 +1041,9 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
     <div class="modal bulk-dialog" role="dialog" aria-modal="true" aria-labelledby="photoTitle">
       <div class="modal-top"><div><h2 id="photoTitle">사진 입고</h2><p>목록 사진을 읽고 품번과 입고 수량을 확인하세요.</p></div><button type="button" class="close" data-close aria-label="닫기">×</button></div>
       <div class="modal-body">
-        <div class="bulk-drop" aria-label="입고 목록 사진 선택">
+        <div class="bulk-drop photo-upload" aria-label="입고 목록 사진 선택">
           <div><strong>입고 목록 사진</strong><p>품번 · 상품명 · 사이즈 · 입고수량 열이 보이는 사진을 선택하세요. JPG, PNG, WEBP · 최대 15MB</p></div>
-          <button type="button" class="btn" id="photoChoose">사진 선택</button>
+          <button type="button" class="btn primary" id="photoChoose">사진 선택</button>
           <input type="file" id="photoFile" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
         </div>
         <p id="photoStatus" class="bulk-notice" role="status"></p>
@@ -1026,6 +1130,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
       const kindLabel={in:'입고',out:'출고 / 판매',adjust:'재고 조정',initial:'초기 등록',order:'발송중 재고 차감',order_cancel:'주문 취소 복구',reversal:'입출고 취소 반영',option_delete:'옵션 삭제',option_restore:'옵션 복구',product_delete:'상품 삭제',product_restore:'상품 복구'};
       let state={products:[],movements:[],orders:[],aliases:{}}, editingId=null, movingId=null, moveMode='in', currentTab='products', storageOK=true, toastTimer=null;
       let expandedSku=null, productPage=1, sizeAddSku=null, undoBusy=false;
+      let visibleStock = new Map();
       const selectedSku=new Set();let shownPageSku=[],deletionBusy=false,showArchived=false,archivedPage=1;
       let inventoryDB=null, dbReady=false, databaseInit=false, writeQueue=Promise.resolve();
       const PRODUCT_PAGE_SIZE=50;
@@ -1390,6 +1495,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         const pages=Math.max(1,Math.ceil(matched.length/PRODUCT_PAGE_SIZE));
         productPage=Math.max(1,Math.min(productPage,pages));
         const onPage=matched.slice((productPage-1)*PRODUCT_PAGE_SIZE,productPage*PRODUCT_PAGE_SIZE);
+        const nextVisibleStock = new Map();
         $('productRows').innerHTML=onPage.map(g=>{
           const opened=expandedSku===g.key;
           const shown = g.variants.filter(p => stockFilter === 'sold' ? p.stock === 0 : stockFilter === 'low' ? p.stock > 0 && low(p) : showZero || p.stock > 0 || pending.has(p.id))
@@ -1400,10 +1506,14 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           const hasShortage = g.variants.some(p => (pending.get(p.id) || 0) > p.stock);
           const unit = g.variants[0].unit;
           const sameUnit = g.variants.every(p => p.unit === unit);
+          const quantities = {total: g.total, available: sameUnit ? available : null};
+          const previous = visibleStock.get(g.key);
+          const changed = previous && (previous.total !== quantities.total || previous.available !== quantities.available);
+          nextVisibleStock.set(g.key, quantities);
           let [status, tone] = lowCount ? ['재고 부족', 'warning'] : ['정상', 'ok'];
           if (g.total === 0) [status, tone] = ['품절', 'sold'];
           else if (hasSoldOut && (stockFilter === 'sold' || !lowCount)) [status, tone] = ['일부 품절', 'sold'];
-          return `<tr class="group-row">
+          return `<tr class="group-row${changed ? ' stock-changed' : ''}">
               <td class="sku-column"><button type="button" class="group-toggle" data-sku-toggle="${html(g.key)}" aria-expanded="${opened}" aria-label="${html(g.sku)} 옵션 ${opened ? '닫기' : '보기'}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg><span class="sku-cell">${html(g.sku)}</span></button></td>
               <td class="name-column"><div class="prod-main">${html(g.name)}</div><div class="prod-sub">${html(g.category)}</div></td>
               <td class="option-column"><div class="option-count">${number(g.inStock)} <span>/ ${number(g.variants.length)}개</span></div></td>
@@ -1414,6 +1524,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
                ${shown.length?`<div class="size-matrix">${shown.map(p=>renderStockOption(p, pending.get(p.id) || 0)).join('')}</div>`:`<div class="size-none">보유 중인 옵션이 없습니다. 품절 옵션을 표시하면 기존 옵션에 입고할 수 있어요.</div>`}
                </div></td></tr>`:''}`;
         }).join('');
+        visibleStock = nextVisibleStock;
         const empty=!matched.length;
         $('productTableWrap').classList.toggle('hide',empty);
         $('productEmpty').classList.toggle('hide',!empty);
@@ -1818,7 +1929,16 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
       $('productRows').addEventListener('click',e=>{
         const add=e.target.closest('[data-add-size]');
         if(add){const key=add.dataset.addSize;const groupProducts=activeProducts().filter(p=>p.sku.trim().toUpperCase()===key);if(groupProducts.length){openProduct(null,{sku:groupProducts[0].sku,name:groupProducts[0].name,variants:groupProducts});expandedSku=key;}return;}
-        const toggle=e.target.closest('[data-sku-toggle]');if(toggle){const key=toggle.dataset.skuToggle;expandedSku=expandedSku===key?null:key;renderProducts();[...$('productRows').querySelectorAll('[data-sku-toggle]')].find(button=>button.dataset.skuToggle===key)?.focus();return;}
+        const toggle = e.target.closest('[data-sku-toggle]');
+        if (toggle) {
+          const key = toggle.dataset.skuToggle;
+          expandedSku = expandedSku === key ? null : key;
+          renderProducts();
+          const rows = $('productRows');
+          rows.querySelector('.size-panel')?.classList.add('revealing');
+          [...rows.querySelectorAll('[data-sku-toggle]')].find(button => button.dataset.skuToggle === key)?.focus();
+          return;
+        }
         const del=e.target.closest('[data-option-delete]');if(del){removeVariant(del.dataset.optionDelete);return;}
         const b=e.target.closest('[data-action]');if(!b)return;const p=productById(b.dataset.id);if(!p)return;b.dataset.action==='edit'?openProduct(p):move(p,b.dataset.action);
       });

@@ -5,26 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>재고노트 · 재고 조회</title>
   <style>
-    :root { color-scheme: light; --canvas: #f6f5fc; --paper: #fff; --ink: #232039; --sub: #55506a; --line: #e7e3f0; --accent: #eee9ff; --primary: #4c2ea9; --red: #9d2c45; }
+    :root { color-scheme: light; --canvas: #f5f3fb; --paper: #fff; --ink: #211935; --sub: #55506a; --line: #e7e3f0; --accent: #eee9ff; --primary: #44289e; --red: #9d2c45; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.5 Inter, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
-    main { width: min(100%, 590px); margin: auto; padding: 22px 16px 32px; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 17px; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 85% 0%, #ede7fd, transparent 28rem), var(--canvas); color: var(--ink); font: 15px/1.5 Inter, 'Noto Sans CJK KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
+    main { width: min(100%, 590px); margin: auto; padding: 16px 14px 32px; }
+    .heading {
+      padding: 15px 15px 16px;
+      border: 1px solid #4f30a0;
+      border-radius: 17px;
+      background: radial-gradient(ellipse at right top, #be9cff45, transparent 65%), linear-gradient(110deg, #39227d, #6743c9);
+      box-shadow: 0 8px 20px #4b2b9028;
+      color: #fff;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 12px; }
     h1, h2, p, dl, dd { margin: 0; }
     h1 { font-size: 25px; letter-spacing: -.05em; }
     h2 { font-size: 17px; overflow-wrap: anywhere; letter-spacing: -.025em; }
-    .status { font-size: 12px; color: var(--sub); }
-    .status.active { color: var(--primary); }
-    .status.error { color: var(--red); }
-    label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+    .status { padding: 3px 8px; border-radius: 999px; background: #ffffff20; font-size: 12px; color: #fff; }
+    .status.active { background: var(--accent); color: var(--primary); }
+    .status.error { background: #fff0f3; color: var(--red); }
+    label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px; color: #f6efff; }
     input, button { font: inherit; }
     input { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--ink); font-size: 16px; }
     [hidden] { display: none !important; }
     :focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+    .heading :focus-visible { outline-color: #fff; }
     .count { margin: 13px 1px 7px; font-size: 13px; color: var(--sub); }
     ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-    .item { padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); }
-    .sku { color: var(--primary); font: 650 12px/1.5 'IBM Plex Mono', ui-monospace, monospace; overflow-wrap: anywhere; }
+    .item { padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 4px 14px #2a1b5009; }
+    .sku { display: inline-block; max-width: 100%; margin-bottom: 3px; padding: 2px 7px; border-radius: 6px; background: var(--accent); color: var(--primary); font: 650 12px/1.5 'IBM Plex Mono', ui-monospace, monospace; overflow-wrap: anywhere; }
     .option { font-size: 13px; color: var(--sub); margin-top: 2px; overflow-wrap: anywhere; }
     .quantities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
     .quantities div { padding: 7px 9px; border-radius: 8px; background: var(--canvas); }
@@ -40,9 +49,11 @@
 </head>
 <body>
   <main>
-    <header><h1>재고노트 조회</h1><p class="status" id="status" role="status">PC 연결 확인 중</p></header>
-    <label for="search">품번, 상품명 또는 옵션 검색</label>
-    <input type="search" id="search" placeholder="예: NK-001, 운동화, 270" maxlength="120" autocomplete="off" spellcheck="false">
+    <div class="heading">
+      <header><h1>재고노트 조회</h1><p class="status" id="status" role="status">PC 연결 확인 중</p></header>
+      <label for="search">품번 · 상품명 · 사이즈 검색</label>
+      <input type="search" id="search" placeholder="예: NK-001, 운동화, 270" maxlength="120" autocomplete="off" spellcheck="false">
+    </div>
     <p class="count" id="count" aria-live="polite"></p>
     <ul id="inventory" aria-label="상품별 재고"></ul>
     <p class="empty" id="empty" hidden></p>
