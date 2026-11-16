@@ -542,6 +542,24 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
   font-size: 13px;
 }
 .field textarea { min-height: 72px; resize: vertical; }
+.product-form-body { display: grid; gap: 12px; }
+.adding-option .modal { max-width: 450px; }
+.adding-option .product-only, #productModal:not(.adding-option) .option-only { display: none; }
+.adding-option .product-option-entry { grid-template-columns: minmax(0, 1fr) minmax(108px, .55fr); }
+.adding-option .field label, #productSubtitle { overflow-wrap: anywhere; }
+.product-option-settings > summary {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary-deep);
+  font-size: 13px;
+  font-weight: 670;
+}
+.product-option-settings[open] > summary { margin-bottom: 10px; }
+.product-option-status { color: var(--sub); font-size: 12px; overflow-wrap: anywhere; }
+.product-option-status:not(:empty) { margin-top: 9px; padding: 7px 10px; border-radius: 8px; background: var(--surface); }
+.option-add-button { color: var(--primary-deep); }
 .req { color: var(--red); }
 .help { display: block; margin-top: 3px; color: var(--sub); font-size: 12px; }
 .mode-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 11px; }
@@ -884,7 +902,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           </section>
           <section class="panel" aria-labelledby="updateHeading">
             <h2 class="panel-title" id="updateHeading">프로그램 업데이트</h2>
-            <p id="updateStatus" role="status">현재 버전 v7.5.10-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
+            <p id="updateStatus" role="status">현재 버전 v7.5.11-preview · GitHub에서 새 버전을 확인할 수 있어요.</p>
             <div class="bulk-actions">
               <button type="button" class="btn" id="updateCheckInline" disabled>새 버전 확인</button>
               <button type="button" class="btn primary" id="updateInstallBtn" disabled>백업 후 업데이트 설치</button>
@@ -986,16 +1004,34 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
 
 <div class="backdrop" id="productModal" role="presentation">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="productTitle">
-      <div class="modal-top"><div><h2 id="productTitle">상품 등록</h2><p>같은 품번 아래에 사이즈나 색상 옵션을 추가할 수 있어요.</p></div><button type="button" class="close" data-close aria-label="닫기">×</button></div>
+      <div class="modal-top"><div><h2 id="productTitle">상품 등록</h2><p id="productSubtitle">같은 품번 아래에 사이즈나 색상 옵션을 추가할 수 있어요.</p></div><button type="button" class="close" data-close aria-label="닫기">×</button></div>
       <form id="productForm">
-        <div class="modal-body"><div class="formgrid">
-          <div class="field full"><label for="pName">상품명 <span class="req">*</span></label><input id="pName" name="name" placeholder="예: 타이벡 감귤" required maxlength="90" /></div>
-          <div class="field"><label for="pCategory">상품 종류</label><select id="pCategory" name="category"><option value="auto">자동 구분</option><option value="신발">신발</option><option value="의류">의류</option><option value="가방">가방</option><option value="모자">모자</option><option value="잡화">잡화</option><option value="전자제품">전자제품</option><option value="화장품">화장품</option><option value="식품">식품</option><option value="생활용품">생활용품</option><option value="도서">도서</option><option value="기타">기타</option><option value="__custom__">+ 직접 입력</option></select></div><div class="field hide" id="customCategoryField"><label for="pCustomCategory">직접 입력할 카테고리</label><input id="pCustomCategory" placeholder="예: 반려동물용품" maxlength="32" /></div><div class="field"><label for="pSku">상품 관리코드(SKU) <span class="req">*</span></label><input id="pSku" name="sku" placeholder="예: MANDARIN-10KG" required maxlength="40" /></div>
-          <div class="field"><label for="pOptionLabel">옵션 1 이름</label><input id="pOptionLabel" maxlength="25" placeholder="예: 사이즈 / 색상 / 용량" /></div><div class="field"><label for="pOption">옵션 1 값</label><input id="pOption" name="option" placeholder="예: 270 / 블랙 / 256GB" maxlength="45" /></div><div class="field"><label for="pOption2Label">옵션 2 이름 (선택)</label><input id="pOption2Label" maxlength="25" placeholder="예: 색상" /></div><div class="field"><label for="pOption2">옵션 2 값 (선택)</label><input id="pOption2" placeholder="예: 화이트" maxlength="45" /></div><div class="field full"><span class="help">옵션이 없는 상품은 값을 비워도 됩니다. 같은 품번에 색상+사이즈처럼 옵션을 조합해서 등록할 수 있습니다.</span></div>
-          <div class="field"><label for="pUnit">재고 단위</label><select id="pUnit" name="unit"><option>개</option><option>박스</option><option>세트</option><option>팩</option><option>봉</option><option>kg</option><option>병</option><option>캔</option><option>장</option><option>권</option><option>켤레</option></select></div>
-          <div class="threshold-banner"><strong>재고 부족 알림:</strong> 모든 상품의 현재 재고가 5개 이하면 자동 경고합니다.</div>
-          <div class="field" id="initialStockField"><label for="pInitial">현재 보유 수량</label><input id="pInitial" name="initial" inputmode="numeric" type="number" min="0" max="999999999" step="1" value="0" required /><span class="help">등록 후 입출고로 변경 가능</span></div>
-        </div></div>
+        <div class="modal-body product-form-body">
+          <div class="formgrid product-only">
+            <div class="field full"><label for="pName">상품명 <span class="req">*</span></label><input id="pName" name="name" placeholder="예: 타이벡 감귤" required maxlength="90" /></div>
+            <div class="field"><label for="pCategory">상품 종류</label><select id="pCategory" name="category"><option value="auto">자동 구분</option><option value="신발">신발</option><option value="의류">의류</option><option value="가방">가방</option><option value="모자">모자</option><option value="잡화">잡화</option><option value="전자제품">전자제품</option><option value="화장품">화장품</option><option value="식품">식품</option><option value="생활용품">생활용품</option><option value="도서">도서</option><option value="기타">기타</option><option value="__custom__">+ 직접 입력</option></select></div>
+            <div class="field hide" id="customCategoryField"><label for="pCustomCategory">직접 입력할 카테고리</label><input id="pCustomCategory" placeholder="예: 반려동물용품" maxlength="32" /></div>
+            <div class="field"><label for="pSku">상품 관리코드(SKU) <span class="req">*</span></label><input id="pSku" name="sku" placeholder="예: MANDARIN-10KG" required maxlength="40" /></div>
+          </div>
+          <div class="formgrid product-option-entry">
+            <div class="field"><label id="pOptionValueLabel" for="pOption">옵션 1 값</label><input id="pOption" name="option" placeholder="예: 270 / 블랙 / 256GB" maxlength="45" autocomplete="off" /></div>
+            <div class="field" id="initialStockField"><label id="pInitialLabel" for="pInitial">현재 보유 수량</label><input id="pInitial" name="initial" inputmode="numeric" type="number" min="0" max="999999999" step="1" value="0" required /><span class="help product-only">등록 후 입출고로 변경 가능</span></div>
+          </div>
+          <div>
+            <details id="productOptionSettings" class="product-option-settings" open>
+              <summary class="option-only">두 번째 옵션 및 상세 설정</summary>
+              <div class="formgrid">
+                <div class="field"><label id="pOption2ValueLabel" for="pOption2">옵션 2 값 (선택)</label><input id="pOption2" placeholder="예: 화이트" maxlength="45" /></div>
+                <div class="field"><label for="pUnit">재고 단위</label><select id="pUnit" name="unit"><option>개</option><option>박스</option><option>세트</option><option>팩</option><option>봉</option><option>kg</option><option>병</option><option>캔</option><option>장</option><option>권</option><option>켤레</option></select></div>
+                <div class="field"><label for="pOptionLabel">옵션 1 이름</label><input id="pOptionLabel" maxlength="25" placeholder="예: 사이즈 / 색상 / 용량" /></div>
+                <div class="field"><label for="pOption2Label">옵션 2 이름 (선택)</label><input id="pOption2Label" maxlength="25" placeholder="예: 색상" /></div>
+                <div class="field full product-only"><span class="help">옵션이 없는 상품은 값을 비워도 됩니다. 같은 품번에 색상+사이즈처럼 옵션을 조합해서 등록할 수 있습니다.</span></div>
+              </div>
+            </details>
+            <p id="productOptionStatus" class="product-option-status option-only" role="status"></p>
+          </div>
+          <div class="threshold-banner product-only"><strong>재고 부족 알림:</strong> 모든 상품의 현재 재고가 5개 이하면 자동 경고합니다.</div>
+        </div>
         <div class="modal-foot"><button class="btn danger left hide" id="deleteBtn" type="button">이 옵션 삭제</button><button class="btn" type="button" data-close>취소</button><button class="btn primary" id="productSubmit" type="submit">상품 등록</button></div>
       </form>
     </div>
@@ -1232,6 +1268,12 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
       }
       function notify(message,err=false){const e=$('toast');e.textContent=message;e.classList.toggle('error',err);e.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('show'),3600);}
       function productById(productId){return state.products.find(p=>p.id===productId&&!p.archived)}
+      function findProductVariant(sku, option, excludeId = null) {
+        const skuKey = sku.trim().toUpperCase(), sizeKey = normalizeSize(option);
+        return state.products.find(product => product.id !== excludeId
+          && product.sku.trim().toUpperCase() === skuKey
+          && normalizeSize(product.option) === sizeKey);
+      }
       function activeProducts(d=state){return d.products.filter(p=>!p.archived)}
       function low(p){return p.stock<=LOW_STOCK_THRESHOLD}
       // 품번 고정 정렬: 영문 전용 → 영문·숫자 혼합 → 숫자 전용.
@@ -1302,6 +1344,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         if (currentTab === 'history') renderHistory();
         renderSidebar(lowOptions);
         if (currentTab === 'orders') renderOrders(orderProductIndex, pending);
+        if ($('productModal').classList.contains('open')) updateOptionAddition();
       }
       function syncCategoryFilter(){
         const sel=$('categoryFilter'),old=sel.value;
@@ -1519,7 +1562,7 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
               <td class="option-column"><div class="option-count">${number(g.inStock)} <span>/ ${number(g.variants.length)}개</span></div></td>
               <td class="quantity-column"><span class="group-total">${number(g.total)} <small>${html(unit)}</small></span>${sameUnit ? `<div class="group-available">판매 가능 ${number(available)}${html(unit)}</div>` : ''}</td>
               <td class="status-column"><div class="group-status"><span class="stock-tag ${tone}">${status}</span>${hasShortage ? '<span class="badge low">주문 초과</span>' : ''}</div></td>
-              <td class="action-column"><button type="button" class="btn sm" data-add-size="${html(g.key)}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>옵션</button></td>
+              <td class="action-column"><button type="button" class="btn sm option-add-button" data-add-size="${html(g.key)}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>옵션 추가</button></td>
             </tr>${opened ? `<tr class="group-expanded"><td colspan="7"><div class="size-panel"><div class="size-panel-top"><div class="size-panel-hint">${stockFilter === 'sold' ? '품절 옵션' : stockFilter === 'low' ? '부족 옵션' : showZero ? '등록된 전체 옵션' : '재고 또는 발송준비 주문이 있는 옵션'}</div><button type="button" class="btn sm" data-add-size="${html(g.key)}">옵션 추가</button></div>
                ${shown.length?`<div class="size-matrix">${shown.map(p=>renderStockOption(p, pending.get(p.id) || 0)).join('')}</div>`:`<div class="size-none">보유 중인 옵션이 없습니다. 품절 옵션을 표시하면 기존 옵션에 입고할 수 있어요.</div>`}
                </div></td></tr>`:''}`;
@@ -1593,14 +1636,51 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         }catch(e){notify('입출고 취소 실패: '+e.message,true);}
         finally{undoBusy=false;}
       }
+      function updateOptionAddition() {
+        if (!sizeAddSku) return;
+        const firstName = $('pOptionLabel').value.trim();
+        const secondName = $('pOption2Label').value.trim();
+        $('pOptionValueLabel').textContent = firstName === '옵션' || !firstName ? '옵션 값' : firstName;
+        $('pOption2ValueLabel').textContent = secondName ? secondName + ' (선택)' : '두 번째 옵션 값 (선택)';
+
+        const option = buildOption();
+        const variant = findProductVariant(sizeAddSku, option);
+        const unit = variant?.unit || $('pUnit').value;
+        $('pInitialLabel').textContent = '수량 (' + unit + ')';
+        $('productSubmit').textContent = variant?.archived ? '복구 후 입고' : variant ? '입고' : '옵션 추가';
+
+        const secondValue = $('pOption2').value.trim();
+        let preview = '';
+        if (secondValue && !$('pOption').value.trim()) {
+          preview = '첫 번째 옵션 값을 먼저 입력하세요.';
+        } else if (variant) {
+          const qty = $('pInitial').valueAsNumber;
+          const after = variant.stock + qty;
+          const current = (variant.archived ? '보관 수량 ' : '현재 ') + number(variant.stock) + unit;
+          const result = validQty(qty, 1) && validQty(after) ? ' → ' + number(after) + unit : '';
+          preview = (option || '기본') + ' · ' + current + result;
+        } else if (!option) {
+          preview = '옵션 값을 비우면 기본 옵션으로 등록돼요.';
+        } else if (secondValue) {
+          preview = '등록할 옵션 ' + option;
+        }
+        $('productOptionStatus').textContent = preview;
+      }
       function openProduct(p=null,group=null){
         editingId=p?.id||null;sizeAddSku=group?.sku||null;
         $('productForm').reset();
+        $('productModal').classList.toggle('adding-option', Boolean(group));
+        $('productOptionSettings').open = !group;
         $('pSku').readOnly=!!group;$('pName').readOnly=!!group;
         $('pCategory').disabled=!!group;
         $('pInitial').value=group?1:0;
-        $('productTitle').textContent=p?'상품 수정':group?'옵션 추가 · '+group.sku:'상품 등록';
-        $('productSubmit').textContent=p?'변경사항 저장':group?'옵션 입고':'상품 등록';
+        $('productTitle').textContent=p?'상품 수정':group?'옵션 추가':'상품 등록';
+        $('productSubtitle').textContent = group ? group.sku + ' · ' + group.name : '같은 품번 아래에 사이즈나 색상 옵션을 추가할 수 있어요.';
+        $('productSubmit').textContent=p?'변경사항 저장':group?'옵션 추가':'상품 등록';
+        $('pOptionValueLabel').textContent = '옵션 1 값';
+        $('pOption2ValueLabel').textContent = '옵션 2 값 (선택)';
+        $('pInitialLabel').textContent = '현재 보유 수량';
+        $('pOption').placeholder = '예: 270 / 블랙 / 256GB';
         $('initialStockField').classList.toggle('hide',!!p);$('pInitial').required=!p;
         $('deleteBtn').classList.toggle('hide',!p);
         const source=p||group?.variants[0];
@@ -1614,10 +1694,12 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
           const names=p?.optionNames||source.optionNames||[];
           $('pOptionLabel').value=names[0]||defaultOptionName(cat);
           $('pOption2Label').value=names[1]||'';
+          if (group && $('pOptionLabel').value === '사이즈') $('pOption').placeholder = cat === '신발' ? '270' : 'M';
         }else{$('pOptionLabel').value='옵션';}
-        if(group){$('pOption').value='';$('pOption2').value='';}
+        if (group) updateOptionAddition();
         $('customCategoryField').classList.toggle('hide',$('pCategory').value!=='__custom__');
-        openModal('productModal');setTimeout(()=>(group?$('pOption'):$('pName')).focus(),30);
+        openModal('productModal');
+        $(group ? 'pOption' : 'pName').focus();
       }
       function move(p,kind){
         movingId=p.id;moveMode=kind; $('moveSubtitle').textContent=[p.name,p.option].filter(Boolean).join(' · ');
@@ -1824,40 +1906,67 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
         $('orderNext').addEventListener('click', () => { orderPage++; renderOrders(); });
       }
 
+      $('productForm').addEventListener('input', updateOptionAddition);
       $('productForm').addEventListener('submit',e=>{
-        e.preventDefault();const name=$('pName').value.trim(),sku=$('pSku').value.trim(),option=buildOption();
+        e.preventDefault();
+        const name = $('pName').value.trim(), sku = $('pSku').value.trim(), option = buildOption();
         if($('pOption2').value.trim()&&!$('pOption').value.trim()){notify('옵션 2를 쓰려면 옵션 1 값부터 입력하세요.',true);return;}
         if(option.length>90){notify('옵션 값은 합쳐서 90자 이하로 입력하세요.',true);return;}
         if(!name||!sku){notify('상품명과 관리코드는 필수입니다.',true);return;}
-        const existingVariant=state.products.find(p=>variantKey(p.sku,p.option)===variantKey(sku,option)&&p.id!==editingId);
-        if(existingVariant?.archivedByProduct&&!confirm('이 옵션은 삭제한 상품에 보관되어 있습니다.\n기존 상품 ID와 이력은 유지하며, 입력한 재고수량을 새 최종 수량으로 적용해 다시 등록할까요?\n다른 삭제 옵션은 복구되지 않습니다.'))return;
+        const existingVariant = findProductVariant(sku, option, editingId);
+        if(!sizeAddSku&&existingVariant?.archivedByProduct&&!confirm('이 옵션은 삭제한 상품에 보관되어 있습니다.\n기존 상품 ID와 이력은 유지하며, 입력한 재고수량을 새 최종 수량으로 적용해 다시 등록할까요?\n다른 삭제 옵션은 복구되지 않습니다.'))return;
         if(existingVariant&&!sizeAddSku&&!existingVariant.archived){notify('같은 품번과 옵션 조합이 이미 등록되어 있습니다.',true);$('pOption').focus();return;}
-        const numbers={initial:$('pInitial').value};
-        if(Object.values(numbers).some(v=>!validQty(v))){notify('수량은 0 이상의 정수로 입력하세요.',true);return;}
-        const category=sizeAddSku?categoryLabel(state.products.find(x=>!x.archived&&x.sku.toUpperCase()===sizeAddSku.trim().toUpperCase())||{}):categoryFromForm(option,name);
+        const numbers = {initial: $('pInitial').value};
+        if(!validQty(numbers.initial)){notify('수량은 0 이상의 정수로 입력하세요.',true);return;}
+        const quantity = Number(numbers.initial);
+        const skuKey = sku.toUpperCase();
+        const source = sizeAddSku && state.products.find(product => !product.archived && product.sku.trim().toUpperCase() === skuKey);
+        if(sizeAddSku && !source){notify('옵션을 추가할 상품을 찾을 수 없어요. 상품을 다시 선택해 주세요.',true);return;}
+        const category = source ? categoryLabel(source) : categoryFromForm(option, name);
         if(!category){notify('상품 종류를 입력하세요.',true);return;}
         const base={name,sku,option,optionNames:option?buildOptionNames():[],category,unit:$('pUnit').value,minStock:LOW_STOCK_THRESHOLD};
         const p=editingId?productById(editingId):null;
         if(editingId&&!p){notify('수정할 상품을 찾을 수 없습니다.',true);return;}
-        if(sizeAddSku&&existingVariant){
-          const inc=Number(numbers.initial);
-          if(inc===0){notify('기존 옵션을 재입고하려면 수량을 1개 이상 입력해 주세요.',true);return;}
-          if(existingVariant.stock+inc>999999999){notify('수량 한도를 초과했어.',true);return;}
-          const restored=restoreVariantForRegistration(existingVariant,{optionNames:base.optionNames},existingVariant.stock+inc);
-          if(restored.wasArchived)log(existingVariant,restored.wasProductArchived?'product_restore':'option_restore',0,'삭제된 옵션 다시 등록');
-          log(existingVariant,'in',inc,'옵션 추가 화면에서 기존 옵션 재입고');
-          expandedSku=sizeAddSku.trim().toUpperCase();
-          persist();render();closeAll();notify(option+' 사이즈에 '+inc+'개 입고 완료');return;
-        }
-        if(p){Object.assign(p,base);state.products.filter(x=>x.id!==p.id&&!x.archived&&x.sku.toUpperCase()===p.sku.toUpperCase()).forEach(x=>x.category=category);notify('상품 정보를 수정했습니다.');}
-        else if(existingVariant&&existingVariant.archived){
+        let message;
+        if (sizeAddSku && existingVariant) {
+          if (!validQty(quantity, 1)) { notify('기존 옵션을 재입고하려면 수량을 1 이상 입력해 주세요.', true); return; }
+          const after = existingVariant.stock + quantity;
+          if (!validQty(after)) { notify('수량 한도를 초과했어요.', true); return; }
+          const unit = existingVariant.unit;
+          if (existingVariant.archivedByProduct &&
+              !confirm('이 옵션을 복구하고 입고할까요?\n보관 수량 ' + number(existingVariant.stock) + unit +
+                '에 ' + number(quantity) + unit + '를 더하면 ' + number(after) + unit + '가 됩니다.')) return;
+          const restored = restoreVariantForRegistration(existingVariant, {optionNames: base.optionNames}, after);
+          if (restored.wasArchived) log(existingVariant, restored.wasProductArchived ? 'product_restore' : 'option_restore', 0, '삭제된 옵션 다시 등록');
+          log(existingVariant, 'in', quantity, '옵션 추가 화면에서 기존 옵션 재입고');
+          message = (option || '기본') + ' · ' + number(quantity) + unit + ' 입고했어요.';
+        } else if (p) {
+          Object.assign(p, base);
+          state.products.filter(x => x.id !== p.id && !x.archived && x.sku.toUpperCase() === skuKey).forEach(x => x.category = category);
+          message = '상품 정보를 수정했습니다.';
+        } else if (existingVariant && existingVariant.archived) {
           const restored=restoreVariantForRegistration(existingVariant,base,Number(numbers.initial));
           log(existingVariant,restored.wasProductArchived?'product_restore':'option_restore',0,'삭제된 옵션 다시 등록');
           if(restored.delta!==0)log(existingVariant,'adjust',restored.delta,'재등록 재고 확정 · 보관된 수량에서 입력 수량으로 조정');
-          notify('삭제된 옵션을 다시 등록했습니다. 입력한 수량이 최종 재고로 적용됩니다.');
-        }else{const newP={id:id(),...base,channel:'기타',cost:0,price:0,stock:Number(numbers.initial),createdAt:new Date().toISOString()};state.products.push(newP);if(newP.stock>0)log(newP,'initial',newP.stock,'상품 등록 시 초기 재고');notify('새 상품을 등록했습니다.');}
-        if(sizeAddSku){expandedSku=sizeAddSku.toUpperCase();productPage=Math.max(1,productPage);if(!editingId&&Number(numbers.initial)===0)$('showZeroSizes').checked=true;}
-        persist();render();closeAll();
+          message = '삭제된 옵션을 다시 등록했습니다. 입력한 수량이 최종 재고로 적용됩니다.';
+        } else {
+          const newProduct = {id: id(), ...base, channel: '기타', cost: 0, price: 0, stock: quantity, createdAt: new Date().toISOString()};
+          state.products.push(newProduct);
+          if (quantity > 0) log(newProduct, 'initial', quantity, sizeAddSku ? '옵션 추가 시 초기 재고' : '상품 등록 시 초기 재고');
+          message = sizeAddSku ? (option || '기본') + ' 옵션을 추가했어요.' : '새 상품을 등록했습니다.';
+        }
+        if (sizeAddSku) {
+          expandedSku = skuKey;
+          if (quantity === 0) $('showZeroSizes').checked = true;
+        }
+        persist();
+        render();
+        if (sizeAddSku) {
+          modalTrigger = [...$('productRows').querySelectorAll('.group-row [data-add-size]')]
+            .find(button => button.dataset.addSize === skuKey);
+        }
+        closeAll();
+        notify(message);
       });
       // 옵션 삭제는 물리 삭제가 아닌 보관 처리입니다. 과거 입출고 기록은 남고,
       // 다시 같은 SKU+옵션을 입고하면 원본 옵션 ID를 그대로 복원합니다.
@@ -1927,8 +2036,12 @@ details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
       $('archivedNext').addEventListener('click',()=>{archivedPage++;renderArchivedList();});
       $('archivedRows').addEventListener('click',e=>{const btn=e.target.closest('[data-restore-sku]');if(btn)restoreSkuGroup(btn.dataset.restoreSku.trim().toUpperCase());});
       $('productRows').addEventListener('click',e=>{
-        const add=e.target.closest('[data-add-size]');
-        if(add){const key=add.dataset.addSize;const groupProducts=activeProducts().filter(p=>p.sku.trim().toUpperCase()===key);if(groupProducts.length){openProduct(null,{sku:groupProducts[0].sku,name:groupProducts[0].name,variants:groupProducts});expandedSku=key;}return;}
+        const add = e.target.closest('[data-add-size]');
+        if (add) {
+          const variants = activeProducts().filter(product => product.sku.trim().toUpperCase() === add.dataset.addSize);
+          if (variants.length) openProduct(null, {sku: variants[0].sku, name: variants[0].name, variants});
+          return;
+        }
         const toggle = e.target.closest('[data-sku-toggle]');
         if (toggle) {
           const key = toggle.dataset.skuToggle;
